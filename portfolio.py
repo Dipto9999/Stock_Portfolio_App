@@ -22,8 +22,6 @@ from IPython.display import display
 
 class Portfolio() :
     def __init__(self, adj_closes, tickers, days) :
-        self.adj_closes = adj_closes
-
         # Connect To Database.
         con = sqlite3.connect('stock_trades.db')
         # Create Cursor.
@@ -37,6 +35,9 @@ class Portfolio() :
         statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME = 'balances' '''
         c.execute(statement)
         found &= pd.DataFrame(c.fetchall())[0][0]
+
+        # Close Connection.
+        con.close()
 
         # Table Does Not Exist.
         if (found == 0) :
@@ -54,25 +55,16 @@ class Portfolio() :
             for ticker in self.tickers :
                 self.balances[ticker] = 0
 
-            self.purchases.to_sql(
-                name = 'purchases',
-                con = con,
-                if_exists = 'replace',
-                index = True,
-            )
-
-            balances_df = pd.DataFrame(columns = self.balances.keys())
-            balances_df.loc[0] = self.balances.values()
-
-            balances_df.to_sql(
-                name = 'balances',
-                con = con,
-                if_exists = 'replace',
-                index = False,
-            )
+            self.__set_purchases()
+            self.__set_balances()
 
         # Table Exists.
         else :
+            # Connect To Database.
+            con = sqlite3.connect('stock_trades.db')
+            # Create Cursor.
+            c = con.cursor()
+
             # Retrieve Table Column Names.
             statement = ''' PRAGMA table_info(purchases) '''
             c.execute(statement)
@@ -116,6 +108,18 @@ class Portfolio() :
             self.balances = pd.DataFrame(data = c.fetchall(), columns = tickers)
             self.balances = self.balances.to_dict(orient = 'records')[0]
 
+            # Close Connection.
+            con.close()
+
+        self.adj_closes = adj_closes
+        self.__set_purchases()
+
+    def __set_purchases(self) :
+        # Connect To Database.
+        con = sqlite3.connect('stock_trades.db')
+        # Create Cursor.
+        c = con.cursor()
+
         self.purchases.to_sql(
             name = 'purchases',
             con = con,
@@ -153,7 +157,8 @@ class Portfolio() :
                 row[ticker] += shares
 
         self.balances[ticker] += shares * float(self.adj_closes.at[date, ticker])
-        print(self.balances)
+
+        self.__set_purchases()
         self.__set_balances()
 
     def __calculate_balance(self, effective_purchases, date) :
@@ -190,7 +195,6 @@ class Portfolio() :
     def display_portfolio(self, date) :
         current_balances = self.calculate_balances(date)
         profits = self.calculate_profits(date)
-        print(profits)
 
         fig, ax = plt.subplots(figsize = (16, 8))
         fig.patch.set_facecolor('#a9a9a9')
