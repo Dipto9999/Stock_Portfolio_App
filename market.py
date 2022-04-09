@@ -16,6 +16,7 @@ from IPython.display import display
 ##############
 ### Market ###
 ##############
+
 class Market() :
     def __init__(self, tickers, days) :
         # Connect To Database.
@@ -42,7 +43,7 @@ class Market() :
                     ) for ticker in self.tickers
                 ]
             except :
-                self.stock_prices = pd.DataFrame()
+                return
 
             self.adj_closes = {}
             for i in range(len(self.tickers)) :
@@ -89,7 +90,7 @@ class Market() :
                     ) for ticker in self.tickers
                 ]
             except :
-                self.stock_prices = pd.DataFrame()
+                return
 
             self.adj_closes = {}
             for i in range(len(self.tickers)) :
@@ -106,6 +107,33 @@ class Market() :
             index = True,
         )
 
+        # Close Connection.
+        con.close()
+
+        self.get_adjcloses()
+
+    def __del__(self) :
+        # Connect To Database.
+        con = sqlite3.connect('stock_trades.db')
+        # Create Cursor.
+        c = con.cursor()
+
+        # Drop Purchases Table.
+        statement = ''' DROP TABLE IF EXISTS adj_closes '''
+        c.execute(statement)
+
+        # Close Connection.
+        con.close()
+
+    def get_dates(self) :
+        return self.dates
+
+    def get_adjcloses(self) :
+        # Connect To Database.
+        con = sqlite3.connect('stock_trades.db')
+        # Create Cursor.
+        c = con.cursor()
+
         statement = ''' SELECT * FROM 'adj_closes' '''
         c.execute(statement)
 
@@ -116,13 +144,29 @@ class Market() :
         self.adj_closes = self.adj_closes[~self.adj_closes.index.duplicated(keep = 'first')]
 
         self.dates = [dt.datetime.strptime(day, '%Y-%m-%d').date() for day in self.adj_closes.index]
-        self.adj_closes.index = self.dates
+        self.adj_closes.index = pd.Index(self.dates, name = 'Date')
+
+        return self.adj_closes
+
+    def add_ticker(self, new_ticker) :
+        self.tickers.append(new_ticker)
+        self.stock_prices.append(web.DataReader(new_ticker, 'yahoo', self.dates[0], dt.datetime.now()))
+        self.adj_closes[new_ticker] = self.stock_prices[-1]['Adj Close'].apply(lambda x : round(x, 2))
+
+        # Connect To Database.
+        con = sqlite3.connect('stock_trades.db')
+        # Create Cursor.
+        c = con.cursor()
+
+        self.adj_closes.to_sql(
+            name = 'adj_closes',
+            con = con,
+            if_exists = 'replace',
+            index = True,
+        )
 
         # Close Connection.
         con.close()
-
-    def get_adjcloses(self) :
-        return self.adj_closes
 
     def plot_adjcloses(self) :
         plt.figure(figsize = (20, 12))
@@ -242,5 +286,16 @@ def test_market() :
         days = 15
     )
     market.plot_corr()
+
+    market.add_ticker('WMT')
+
+    market.plot_adjcloses()
+    market.plot_rsi(
+        ticker = 'WMT',
+        days = 15
+    )
+    market.plot_corr()
+
+    del market
 
 # test_market()
