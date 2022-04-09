@@ -16,7 +16,6 @@ from IPython.display import display
 ##############
 ### Market ###
 ##############
-
 class Market() :
     def __init__(self, tickers, days) :
         # Connect To Database.
@@ -33,17 +32,17 @@ class Market() :
         # Table Does Not Exist.
         if (found == 0) :
             self.tickers = tickers
-            start = dt.datetime(2022, 3, 27, 0, 0) - dt.timedelta(days)
+            start = dt.datetime.today() - dt.timedelta(days)
 
             # Retrieve Yahoo Stock Prices.
             try :
                 self.stock_prices = [
                     web.DataReader(
-                        ticker, 'yahoo', start, dt.datetime(2022, 3, 27, 0, 0)
+                        ticker, 'yahoo', start, dt.datetime.today()
                     ) for ticker in self.tickers
                 ]
             except :
-                return pd.DataFrame()
+                self.stock_prices = pd.DataFrame()
 
             self.adj_closes = {}
             for i in range(len(self.tickers)) :
@@ -77,7 +76,7 @@ class Market() :
             start = dt.datetime.combine(
                 dt.datetime.strptime(self.stock_prices.index[-1], '%Y-%m-%d'),
                 dt.datetime.min.time()
-            ) + dt.timedelta(1)
+            )
 
             # Retrieve Yahoo Stock Prices.
             try :
@@ -90,7 +89,7 @@ class Market() :
                     ) for ticker in self.tickers
                 ]
             except :
-                return pd.DataFrame()
+                self.stock_prices = pd.DataFrame()
 
             self.adj_closes = {}
             for i in range(len(self.tickers)) :
@@ -122,6 +121,9 @@ class Market() :
         # Close Connection.
         con.close()
 
+    def get_adjcloses(self) :
+        return self.adj_closes
+
     def plot_adjcloses(self) :
         plt.figure(figsize = (20, 12))
         plt.yscale('log')
@@ -139,7 +141,7 @@ class Market() :
         plt.title('Market Prices', fontsize = 25)
         plt.show()
 
-    def get_rsi(self, ticker, days) :
+    def plot_rsi(self, ticker, days) :
         ticker_prices = self.adj_closes[ticker]
 
         delta = ticker_prices.diff(1)
@@ -158,9 +160,6 @@ class Market() :
         stock_df = pd.merge(ticker_prices, rsi, left_index = True, right_index = True)
         stock_df.rename(columns = {ticker : 'Adj Closes'}, inplace = True)
 
-        self.__plot_rsi(stock_df, ticker)
-
-    def __plot_rsi(self, stock_df, ticker) :
         plt.style.use("dark_background")
         plt.figure(figsize = (12, 8))
 
@@ -209,11 +208,9 @@ class Market() :
         plt.show()
         plt.rcdefaults()
 
-    def get_correlations(self) :
+    def plot_corr(self) :
         self.corr_data = self.adj_closes.pct_change().corr(method = 'pearson').apply(lambda x : round(x * 100, 2))
-        self.__display_heatmap()
 
-    def __display_heatmap(self) :
         plt.figure(figsize = (20, 12))
 
         heatmap = sns.heatmap(
@@ -236,14 +233,14 @@ class Market() :
 def test_market() :
     market = Market(
         tickers = ['TSLA', 'MSFT', 'AAPL', 'FB', 'NVDA', 'AMD', 'QCOM', 'CLVS'],
-        days = 25
+        days = 365
     )
 
     market.plot_adjcloses()
-    market.get_rsi(
+    market.plot_rsi(
         ticker = 'TSLA',
         days = 15
     )
-    market.get_correlations()
+    market.plot_corr()
 
 test_market()
