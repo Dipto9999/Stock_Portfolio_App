@@ -2,9 +2,12 @@
 
 ## Contents
 * [Overview](#Overview)
+* [Market](#Market)
+    * [Adjusted Prices](#Adjusted-Prices)
+    * [RSI](#RSI)
+    * [Stock Correlations](#Stock-Correlations)
+* [Portfolio](#Portfolio)
 * [Tkinter GUI](#Tkinter-GUI)
-* [Visualizations](#Visualizations)
-* [Stock Correlations](#Stock-Correlations)
     * [Pearson](#Pearson)
 
 ## Overview
