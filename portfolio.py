@@ -21,35 +21,21 @@ from IPython.display import display
 
 class Portfolio() :
     def __init__(self, tickers, days) :
-        # Connect To Database.
-        con = sqlite3.connect('stock_trades.db')
-        # Create Cursor.
-        c = con.cursor()
-
-        # Check If Tables Exist.
-        statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME = 'holdings' '''
-        c.execute(statement)
-        found = pd.DataFrame(c.fetchall())[0][0]
-
-        statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME = 'balances' '''
-        c.execute(statement)
-        found &= pd.DataFrame(c.fetchall())[0][0]
-
-        # Close Connection.
-        con.close()
-
         # Table Does Not Exist.
-        if (found == 0) :
+        if (self.records_exist() == 0) :
             self.tickers = tickers
+
+            # Calculate Effective Dates for Stock Porfolio.
             start = dt.datetime.today() - dt.timedelta(days)
-            # today().date()
             effective_dates = []
-            for number_days in range((dt.datetime.today().date() - start.date()).days) :
+            for number_days in range((dt.datetime.today().date() - start.date()).days + 1) :
                 effective_dates.append((start + dt.timedelta(number_days)).date())
 
+            # Create and Initialize Holdings DataFrame.
             self.holdings = pd.DataFrame(columns = tickers, index = effective_dates).fillna(0)
             self.holdings.index.name = 'Date'
 
+            # Create Initial Stock Balances Dictionary.
             self.balances = {}
             for ticker in self.tickers :
                 self.balances[ticker] = 0
@@ -62,19 +48,21 @@ class Portfolio() :
             self.get_tickers()
             self.get_holdings()
 
+            # Calculate Effective Dates for Stock Porfolio.
             delta = dt.datetime.today().date() - self.holdings.index[-1]
             effective_dates = [self.holdings.index[-1] + dt.timedelta(days = (i + 1)) for i in range(delta.days + 1)]
 
-            # Duplicate Most Recent Purchase Activity.
+            # Create Updated Holdings DataFrame.
             updated_holdings = pd.DataFrame(index = effective_dates, columns = self.holdings.columns)
+            # Initialize Updated Stock Holdings Most Recent Purchase Activity.
             for i, row in updated_holdings.iterrows() :
                 updated_holdings.loc[i] = self.holdings.iloc[-1:].values
 
+            # Append Updated Stock Holdings to Holdings DataFrame.
             self.holdings = pd.concat(
                 [self.holdings, updated_holdings],
                 ignore_index = False
             )
-
             self.holdings.index.name = 'Date'
 
             self.get_balances()
@@ -82,21 +70,46 @@ class Portfolio() :
         self.__set_holdings()
 
     def __del__(self) :
+        self.delete_records()
+
+    @staticmethod
+    def delete_records() :
         # Connect To Database.
         con = sqlite3.connect('stock_trades.db')
         # Create Cursor.
         c = con.cursor()
 
-        # Drop holdings Table.
+        # Drop Holdings Table From SQLite Database.
         statement = ''' DROP TABLE IF EXISTS holdings '''
         c.execute(statement)
 
-        # Drop Balances Table.
+        # Drop Balances Table From SQLite Database.
         statement = ''' DROP TABLE IF EXISTS balances '''
         c.execute(statement)
 
         # Close Connection.
         con.close()
+
+    @staticmethod
+    def records_exist() :
+        # Connect To Database.
+        con = sqlite3.connect('stock_trades.db')
+        # Create Cursor.
+        c = con.cursor()
+
+        # Check If Tables Exist in SQLite Database.
+        statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME = 'holdings' '''
+        c.execute(statement)
+        found = pd.DataFrame(c.fetchall())[0][0]
+
+        statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME = 'balances' '''
+        c.execute(statement)
+        found &= pd.DataFrame(c.fetchall())[0][0]
+
+        # Close Connection.
+        con.close()
+
+        return found
 
     def get_tickers(self) :
         # Connect To Database.
@@ -104,7 +117,7 @@ class Portfolio() :
         # Create Cursor.
         c = con.cursor()
 
-        # Retrieve Table Column Names.
+        # Query Holdings Table Column Names.
         statement = ''' PRAGMA table_info(holdings) '''
         c.execute(statement)
 
@@ -116,6 +129,7 @@ class Portfolio() :
         # Close Connection.
         con.close()
 
+        # Set Tickers.
         self.tickers = columns_df['name'][columns_df['name'] != 'Date'].to_list()
 
         return self.tickers
@@ -126,10 +140,11 @@ class Portfolio() :
         # Create Cursor.
         c = con.cursor()
 
-        # Retrieve Table Data.
+        # Query Holdings Table Data from SQLite Database.
         statement = ''' SELECT * FROM holdings '''
         c.execute(statement)
 
+        # Create Holdings Dataframe.
         self.holdings = pd.DataFrame(data = c.fetchall(), columns = ['Date'] + self.tickers)
 
         # Close Connection.
@@ -147,9 +162,11 @@ class Portfolio() :
         # Create Cursor.
         c = con.cursor()
 
+        # Query Balances Table from SQLite Database.
         statement = ''' SELECT * FROM balances '''
         c.execute(statement)
 
+        # Create Balances Dictionary.
         self.balances = pd.DataFrame(data = c.fetchall(), columns = self.tickers)
         self.balances = self.balances.to_dict(orient = 'records')[0]
 
@@ -164,6 +181,7 @@ class Portfolio() :
         # Create Cursor.
         c = con.cursor()
 
+        # Replace Holdings Table on SQLite Database.
         self.holdings.to_sql(
             name = 'holdings',
             con = con,
@@ -180,9 +198,11 @@ class Portfolio() :
         # Create Cursor.
         c = con.cursor()
 
+        # Create Balances DataFrame.
         balances_df = pd.DataFrame(columns = self.balances.keys())
         balances_df.loc[0] = self.balances.values()
 
+        # Replace Balances Table on SQLite Database.
         balances_df.to_sql(
             name = 'balances',
             con = con,
@@ -193,21 +213,22 @@ class Portfolio() :
         # Close Connection.
         con.close()
 
-    def buy_stock(self, ticker, shares, adj_closes, date) :
+    def buy_shares(self, ticker, shares, adj_closes, date) :
+        # Add Shares to Effective Dates in Holdings DataFrame.
         for current, row in self.holdings.iterrows() :
             difference = (current - date).days
 
             if difference >= 0 :
                 row[ticker] += shares
-        print(adj_closes)
+        # Add New Deposits to Balances.
         self.balances[ticker] += shares * float(adj_closes.at[date, ticker])
 
         self.__set_holdings()
         self.__set_balances()
 
-    def sell_stock(self, ticker, shares, adj_closes, date) :
+    def sell_shares(self, ticker, shares, adj_closes, date) :
+        # Check That Holdings for the Effective Dates Exceeds Number of Shares to Sell.
         sold = self.holdings.at[date, ticker] >= shares
-
         for current, row in self.holdings.iterrows() :
             difference = (current - date).days
 
@@ -217,16 +238,17 @@ class Portfolio() :
         if (not sold) :
             return 0
 
+        # Deduct Number of Shares for Effective Dates.
         for current, row in self.holdings.iterrows() :
             difference = (current - date).days
 
             if difference >= 0 :
                 row[ticker] -= shares
 
-        print(self.holdings)
-
+        # Calculate Liquidated Balance From Sold Shares.
         liquidated = shares * float(adj_closes.at[date, ticker])
-        self.balances[ticker] = round(self.holdings.at[date, ticker] * self.balances[ticker]/(shares + self.holdings.at[date, ticker]), 2)
+        # Calculate Remaining Balance From Initial Deposits.
+        self.balances[ticker] = round(self.balances[ticker] * self.holdings.at[date, ticker]/(self.holdings.at[date, ticker] + shares), 2)
 
         self.__set_holdings()
         self.__set_balances()
@@ -235,19 +257,24 @@ class Portfolio() :
 
     def add_ticker(self, new_ticker) :
         self.tickers.append(new_ticker)
+
+        # Initialize Holdings.
         self.holdings[new_ticker] = [0 for i in range(len(self.holdings.index))]
         self.__set_holdings()
 
+        # Initialize Balances.
         self.balances[new_ticker] = 0
         self.__set_balances()
 
     def __calculate_balance(self, adj_closes, effective_holdings, date) :
+        # Calculate Sum of Current Balances for All Tickers.
         current = 0
         for ticker in effective_holdings.columns :
             current += float(effective_holdings.at[date, ticker]) * float(adj_closes.at[date, ticker])
         return round(current, 2)
 
     def calculate_balances(self, adj_closes, date) :
+        # Calculate Current Balances for Effective Tickers.
         current_balances = {}
         for ticker in self.holdings.columns :
             current_balance = self.__calculate_balance(
@@ -260,9 +287,11 @@ class Portfolio() :
         return current_balances
 
     def __calculate_profit(self, adj_closes, starting_balance, effective_holdings, date) :
+        # Calculate Sum of Profits for Effective Shares.
         return round((self.__calculate_balance(adj_closes, effective_holdings, date) - starting_balance), 2)
 
     def calculate_profits(self, adj_closes, date) :
+        # Calculate Profits for Effective Shares.
         profits = {}
         current_balances = self.calculate_balances(adj_closes, date)
         for ticker in current_balances.keys() :
@@ -275,8 +304,9 @@ class Portfolio() :
         return profits
 
     def display_portfolio(self, adj_closes) :
-        last_close = adj_closes.index[-1]
 
+        # Calculate Current Balances and Profits for Tickers.
+        last_close = adj_closes.index[-1]
         current_balances = self.calculate_balances(adj_closes = adj_closes, date = last_close)
         profits = self.calculate_profits(adj_closes = adj_closes, date = last_close)
 
@@ -287,6 +317,7 @@ class Portfolio() :
         ax.tick_params(axis = 'x', color = 'white')
         ax.tick_params(axis = 'y', color = 'white')
 
+        # Display Pie Chart of Current Balances.
         wedges, texts, autotexts = ax.pie(
             current_balances.values(),
             labels = current_balances.keys(),
@@ -303,8 +334,7 @@ class Portfolio() :
         chart_center = plt.Circle((0, 0), 0.45, color = 'black')
         plt.gca().add_artist(chart_center)
 
-        # Portfolio Preview Label
-
+        # Display Portfolio Preview Label.
         ax.text(
             x = -2, y = 1,
             s = 'Portfolio Preview',
@@ -315,8 +345,7 @@ class Portfolio() :
             horizontalalignment = 'center'
         )
 
-        # Current Balances
-
+        # Display Current Balances.
         ax.text(
             x = -2, y = 0.85,
             s = f'Total Value : {sum(current_balances.values()):.2f} USD',
@@ -327,8 +356,7 @@ class Portfolio() :
             horizontalalignment = 'center'
         )
 
-        # Profits
-
+        # Display Profits.
         offset = -0.15
         for ticker, profit in profits.items() :
             if profit > 0 :
@@ -365,35 +393,35 @@ def test_portfolio() :
         days = 365
     )
 
-    portfolio.buy_stock(
+    portfolio.buy_shares(
         ticker = 'AAPL',
         shares = 14,
         adj_closes = market.get_adjcloses(),
         date = dt.date(2022, 2, 18)
     )
 
-    portfolio.buy_stock(
+    portfolio.buy_shares(
         ticker = 'CLVS',
         shares = 1352,
         adj_closes = market.get_adjcloses(),
         date = dt.date(2022, 2, 18),
     )
 
-    portfolio.buy_stock(
+    portfolio.buy_shares(
         ticker = 'AAPL',
         shares = 4,
         adj_closes = market.get_adjcloses(),
         date = dt.date(2022, 2, 24)
     )
 
-    portfolio.buy_stock(
+    portfolio.buy_shares(
         ticker = 'CLVS',
         shares = 415,
         adj_closes = market.get_adjcloses(),
         date = dt.date(2022, 2, 25)
     )
 
-    portfolio.buy_stock(
+    portfolio.buy_shares(
         ticker = 'AAPL',
         shares = 5,
         adj_closes = market.get_adjcloses(),
@@ -402,7 +430,7 @@ def test_portfolio() :
 
     portfolio.display_portfolio(adj_closes = market.get_adjcloses())
 
-    revenue = portfolio.sell_stock(
+    revenue = portfolio.sell_shares(
         ticker = 'CLVS',
         shares = 1500,
         adj_closes = market.get_adjcloses(),
@@ -415,14 +443,14 @@ def test_portfolio() :
     market.add_ticker('WMT')
     portfolio.add_ticker('WMT')
 
-    portfolio.buy_stock(
+    portfolio.buy_shares(
         ticker = 'WMT',
         shares = 5,
         adj_closes = market.get_adjcloses(),
         date = dt.date(2022, 3, 14)
     )
 
-    revenue = portfolio.sell_stock(
+    revenue = portfolio.sell_shares(
         ticker = 'WMT',
         shares = 5,
         adj_closes = market.get_adjcloses(),
@@ -432,4 +460,4 @@ def test_portfolio() :
 
     portfolio.display_portfolio(adj_closes = market.get_adjcloses())
 
-    del portfolio
+# test_portfolio()

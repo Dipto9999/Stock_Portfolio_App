@@ -24,14 +24,8 @@ class Market() :
         # Create Cursor.
         c = con.cursor()
 
-        # Check If Table Exists.
-        statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME = 'adj_closes' '''
-        c.execute(statement)
-
-        found = pd.DataFrame(c.fetchall())[0][0]
-
         # Table Does Not Exist.
-        if (found == 0) :
+        if (self.records_exist() == 0) :
             self.tickers = tickers
             start = dt.datetime.today() - dt.timedelta(days)
 
@@ -45,17 +39,19 @@ class Market() :
             except :
                 return
 
+            # Set Adjusted Close Stock Prices.
             self.adj_closes = {}
             for i in range(len(self.tickers)) :
                 self.adj_closes[self.tickers[i]] = self.stock_prices[i]['Adj Close'].apply(lambda x : round(x, 2))
 
+            # Create Adjusted Closes DataFrame.
             self.adj_closes = pd.DataFrame.from_dict(self.adj_closes)
             self.dates = [day.date() for day in self.adj_closes.index]
             self.adj_closes = self.adj_closes.reindex(self.dates)
 
         # Table Exists.
         else :
-            # Retrieve Table Column Names.
+            # Query Adjusted Closes Table Column Names.
             statement = ''' PRAGMA table_info(adj_closes) '''
             c.execute(statement)
 
@@ -64,12 +60,14 @@ class Market() :
                 columns = ['cid', 'name', 'type', 'notnull', 'dflt_value', 'pk']
             )
 
-            # Retrieve Table Data.
+            # Set Tickers.
+            self.tickers = columns_df['name'][columns_df['name'] != 'Date'].to_list()
+
+            # Query Adjusted Closes Table Data.
             statement = ''' SELECT * FROM adj_closes '''
             c.execute(statement)
 
-            self.tickers = columns_df['name'][columns_df['name'] != 'Date'].to_list()
-
+            # Create Stock Prices DataFrame.
             self.stock_prices = pd.DataFrame(data = c.fetchall(), columns = columns_df['name'].to_list())
             self.stock_prices.set_index(keys = self.stock_prices['Date'], inplace = True)
             self.stock_prices.drop(columns = ['Date'], inplace = True)
@@ -92,14 +90,17 @@ class Market() :
             except :
                 return
 
+            # Create Adjusted Closes DataFrame.
             self.adj_closes = {}
             for i in range(len(self.tickers)) :
                 self.adj_closes[self.tickers[i]] = self.stock_prices[i]['Adj Close'].apply(lambda x : round(x, 2))
-
             self.adj_closes = pd.DataFrame.from_dict(self.adj_closes)
+
+            # Update Adjusted Closes Indices.
             self.dates = [day.date() for day in self.adj_closes.index]
             self.adj_closes = self.adj_closes.reindex(self.dates)
 
+        # Create or Update Table for Adjusted Closes on SQLite Database.
         self.adj_closes.to_sql(
             name = 'adj_closes',
             con = con,
@@ -113,17 +114,39 @@ class Market() :
         self.get_adjcloses()
 
     def __del__(self) :
+        self.delete_records()
+
+    @staticmethod
+    def delete_records() :
         # Connect To Database.
         con = sqlite3.connect('stock_trades.db')
         # Create Cursor.
         c = con.cursor()
 
-        # Drop Purchases Table.
+        # Drop Purchases Table from SQLite Database.
         statement = ''' DROP TABLE IF EXISTS adj_closes '''
         c.execute(statement)
 
         # Close Connection.
         con.close()
+
+    @staticmethod
+    def records_exist() :
+        # Connect To Database.
+        con = sqlite3.connect('stock_trades.db')
+        # Create Cursor.
+        c = con.cursor()
+
+        # Check If Table Exists in SQLite Database.
+        statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME = 'adj_closes' '''
+        c.execute(statement)
+
+        found = pd.DataFrame(c.fetchall())[0][0]
+
+        # Close Connection.
+        con.close()
+
+        return found
 
     def get_dates(self) :
         return self.dates
@@ -137,7 +160,7 @@ class Market() :
         statement = ''' SELECT * FROM 'adj_closes' '''
         c.execute(statement)
 
-        # Retrieve Lifetime Data From SQLite Table.
+        # Query Adjusted Closes Table Data From SQLite Database and Create Adjusted Closes DataFrame.
         self.adj_closes = pd.DataFrame(c.fetchall(), columns = ['Date'] + self.adj_closes.columns.tolist())
         self.adj_closes.set_index(keys = self.adj_closes['Date'], inplace = True)
         self.adj_closes.drop(columns = ['Date'], inplace = True)
@@ -149,6 +172,7 @@ class Market() :
         return self.adj_closes
 
     def add_ticker(self, new_ticker) :
+        # Retrieve Yahoo Stock Prices for New Ticker and Add Column to Adjusted Closes DataFrame.
         self.tickers.append(new_ticker)
         self.stock_prices.append(web.DataReader(new_ticker, 'yahoo', self.dates[0], dt.datetime.now()))
         self.adj_closes[new_ticker] = self.stock_prices[-1]['Adj Close'].apply(lambda x : round(x, 2))
@@ -158,6 +182,7 @@ class Market() :
         # Create Cursor.
         c = con.cursor()
 
+        # Replace Table for Adjusted Closes on SQLite Database.
         self.adj_closes.to_sql(
             name = 'adj_closes',
             con = con,
