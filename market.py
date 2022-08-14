@@ -19,67 +19,22 @@ from IPython.display import display
 
 class Market() :
     def __init__(self, tickers, days) :
-        # Connect To Database.
-        con = sqlite3.connect('stock_trades.db')
-        # Create Cursor.
-        c = con.cursor()
-
         # Table Does Not Exist.
-        if (self.records_exist() == 0) :
-            self.tickers = tickers
-            start = dt.datetime.today() - dt.timedelta(days)
-
-            # Retrieve Yahoo Stock Prices.
-            try :
-                self.stock_prices = [
-                    web.DataReader(
-                        ticker, 'yahoo', start, dt.datetime.today()
-                    ) for ticker in self.tickers
-                ]
-            except :
-                return
-
-            # Set Adjusted Close Stock Prices.
-            self.adj_closes = {}
-            for i in range(len(self.tickers)) :
-                self.adj_closes[self.tickers[i]] = self.stock_prices[i]['Adj Close'].apply(lambda x : round(x, 2))
-
-            # Create Adjusted Closes DataFrame.
-            self.adj_closes = pd.DataFrame.from_dict(self.adj_closes)
-            self.dates = [day.date() for day in self.adj_closes.index]
-            self.adj_closes = self.adj_closes.reindex(self.dates)
-
+        if (not self.records_exist()) :
+            self.init_records(tickers = tickers, days = days)
         # Table Exists.
-        else :
-            # Query Adjusted Closes Table Column Names.
-            statement = ''' PRAGMA table_info(adj_closes) '''
-            c.execute(statement)
-
-            columns_df = pd.DataFrame(
-                data = c.fetchall(),
-                columns = ['cid', 'name', 'type', 'notnull', 'dflt_value', 'pk']
-            )
-
-            # Set Tickers.
-            self.tickers = columns_df['name'][columns_df['name'] != 'Date'].to_list()
-
-            # Query Adjusted Closes Table Data.
-            statement = ''' SELECT * FROM adj_closes '''
-            c.execute(statement)
-
-            # Create Stock Prices DataFrame.
-            self.stock_prices = pd.DataFrame(data = c.fetchall(), columns = columns_df['name'].to_list())
-            self.stock_prices.set_index(keys = self.stock_prices['Date'], inplace = True)
-            self.stock_prices.drop(columns = ['Date'], inplace = True)
+        elif (self.records_exist()) :
+            self.get_tickers()
+            self.get_adjcloses()
 
             start = dt.datetime.combine(
-                dt.datetime.strptime(self.stock_prices.index[-1], '%Y-%m-%d'),
+                self.dates[-1],
                 dt.datetime.min.time()
             )
 
             # Retrieve Yahoo Stock Prices.
             try :
-                self.stock_prices = [
+                stock_prices = [
                     web.DataReader(
                         ticker,
                         'yahoo',
@@ -90,31 +45,32 @@ class Market() :
             except :
                 return
 
-            # Create Adjusted Closes DataFrame.
-            self.adj_closes = {}
+            # Create Updated Adjusted Closes DataFrame.
+            self.stock_prices = []
+            updated_closes = {}
             for i in range(len(self.tickers)) :
-                self.adj_closes[self.tickers[i]] = self.stock_prices[i]['Adj Close'].apply(lambda x : round(x, 2))
-            self.adj_closes = pd.DataFrame.from_dict(self.adj_closes)
+                self.stock_prices.append(pd.DataFrame(stock_prices[i].iloc[lambda x : x.index >= start]))
+                updated_closes[self.tickers[i]] = self.stock_prices[i]['Adj Close'].apply(lambda x : round(x, 2))
+
+            updated_closes = pd.DataFrame.from_dict(updated_closes)
+            updated_dates = [effective_datetime.date() for effective_datetime in updated_closes.index]
 
             # Update Adjusted Closes Indices.
-            self.dates = [day.date() for day in self.adj_closes.index]
-            self.adj_closes = self.adj_closes.reindex(self.dates)
+            updated_closes.index = pd.Index(updated_dates, name = 'Date')
 
-        # Create or Update Table for Adjusted Closes on SQLite Database.
-        self.adj_closes.to_sql(
-            name = 'adj_closes',
-            con = con,
-            if_exists = 'append',
-            index = True,
-        )
+            # Append Updated Stock Holdings to Holdings DataFrame.
+            self.adj_closes = pd.concat(
+                [self.adj_closes, updated_closes],
+                ignore_index = False
+            )
+            self.adj_closes = self.adj_closes[~self.adj_closes.index.duplicated(keep = 'first')]
 
-        # Close Connection.
-        con.close()
+            self.get_dates()
 
-        self.get_adjcloses()
+        self.set_adjcloses()
 
     def __del__(self) :
-        self.delete_records()
+        return
 
     @staticmethod
     def delete_records() :
@@ -146,10 +102,61 @@ class Market() :
         # Close Connection.
         con.close()
 
-        return found
+        return (found == 1)
 
-    def get_dates(self) :
-        return self.dates
+    def init_records(self, tickers, days) :
+        self.tickers = tickers
+        start = dt.datetime.today() - dt.timedelta(days)
+
+        # Retrieve Yahoo Stock Prices.
+        try :
+            stock_prices = [
+                web.DataReader(
+                    ticker, 'yahoo', start, dt.datetime.today()
+                ) for ticker in self.tickers
+            ]
+        except :
+            return
+
+        # Set Adjusted Close Stock Prices.
+        self.stock_prices = []
+        self.adj_closes = {}
+
+        for i in range(len(self.tickers)) :
+            self.stock_prices.append(pd.DataFrame(stock_prices[i].iloc[lambda x : x.index >= start]))
+            self.adj_closes[self.tickers[i]] = self.stock_prices[i]['Adj Close'].apply(lambda x : round(x, 2))
+
+        # Create Adjusted Closes DataFrame.
+        self.adj_closes = pd.DataFrame.from_dict(self.adj_closes)
+        # Reindex DataFrame As Type datetime.date.
+        self.dates = [day.date() for day in self.adj_closes.index]
+        self.adj_closes = self.adj_closes.reindex(self.dates)
+
+    def reset(self, tickers, days) :
+        self.delete_records()
+        self.init_records(tickers = tickers, days = days)
+
+    def get_tickers(self) :
+        # Connect To Database.
+        con = sqlite3.connect('stock_trades.db')
+        # Create Cursor.
+        c = con.cursor()
+
+        # Query Adjusted Closes Table Column Names.
+        statement = ''' PRAGMA table_info(adj_closes) '''
+        c.execute(statement)
+
+        columns_df = pd.DataFrame(
+            data = c.fetchall(),
+            columns = ['cid', 'name', 'type', 'notnull', 'dflt_value', 'pk']
+        )
+
+        # Close Connection.
+        con.close()
+
+        self.tickers = columns_df['name'][columns_df['name'] != 'Date'].to_list()
+
+        return self.tickers
 
     def get_adjcloses(self) :
         # Connect To Database.
@@ -161,28 +168,37 @@ class Market() :
         c.execute(statement)
 
         # Query Adjusted Closes Table Data From SQLite Database and Create Adjusted Closes DataFrame.
-        self.adj_closes = pd.DataFrame(c.fetchall(), columns = ['Date'] + self.adj_closes.columns.tolist())
+        self.adj_closes = pd.DataFrame(c.fetchall(), columns = ['Date'] + self.tickers)
         self.adj_closes.set_index(keys = self.adj_closes['Date'], inplace = True)
         self.adj_closes.drop(columns = ['Date'], inplace = True)
         self.adj_closes = self.adj_closes[~self.adj_closes.index.duplicated(keep = 'first')]
 
-        self.dates = [dt.datetime.strptime(day, '%Y-%m-%d').date() for day in self.adj_closes.index]
-        self.adj_closes.index = pd.Index(self.dates, name = 'Date')
+        # Close Connection.
+        con.close()
+
+        # Reindex DataFrame with Dates.
+        self.get_dates()
 
         return self.adj_closes
 
-    def add_ticker(self, new_ticker) :
-        # Retrieve Yahoo Stock Prices for New Ticker and Add Column to Adjusted Closes DataFrame.
-        self.tickers.append(new_ticker)
-        self.stock_prices.append(web.DataReader(new_ticker, 'yahoo', self.dates[0], dt.datetime.now()))
-        self.adj_closes[new_ticker] = self.stock_prices[-1]['Adj Close'].apply(lambda x : round(x, 2))
+    def get_dates(self) :
+        if isinstance(self.adj_closes.index[-1], str) :
+            self.dates = [dt.datetime.strptime(day, '%Y-%m-%d').date() for day in self.adj_closes.index]
+        elif isinstance(self.adj_closes.index[-1], dt.date) :
+            self.dates = self.adj_closes.index
 
+        # Set Adjusted Closes Indices.
+        self.adj_closes.index = pd.Index(self.dates, name = 'Date')
+
+        return self.dates
+
+    def set_adjcloses(self) :
         # Connect To Database.
         con = sqlite3.connect('stock_trades.db')
         # Create Cursor.
         c = con.cursor()
 
-        # Replace Table for Adjusted Closes on SQLite Database.
+        # Create or Update Table for Adjusted Closes on SQLite Database.
         self.adj_closes.to_sql(
             name = 'adj_closes',
             con = con,
@@ -193,8 +209,19 @@ class Market() :
         # Close Connection.
         con.close()
 
+    def add_ticker(self, new_ticker) :
+        if not (new_ticker in self.tickers) :
+            # Retrieve Yahoo Stock Prices for New Ticker and Add Column to Adjusted Closes DataFrame.
+            self.tickers.append(new_ticker)
+            self.stock_prices.append(web.DataReader(new_ticker, 'yahoo', self.dates[0], dt.datetime.now()))
+            self.adj_closes[new_ticker] = self.stock_prices[-1]['Adj Close'].apply(lambda x : round(x, 2))
+
+            self.set_adjcloses()
+
+        return self.tickers
+
     def plot_adjcloses(self) :
-        plt.figure(figsize = (20, 12))
+        fig_adjcloses = plt.figure(figsize = (20, 12))
         plt.yscale('log')
 
         for ticker in self.adj_closes.columns :
@@ -208,7 +235,8 @@ class Market() :
         plt.xlabel('Date', fontsize = 17.5)
         plt.ylabel('Adjusted Close ($log_{10}$)', fontsize = 17.5)
         plt.title('Market Prices', fontsize = 25)
-        plt.show()
+
+        return fig_adjcloses
 
     def plot_rsi(self, ticker, days) :
         ticker_prices = self.adj_closes[ticker]
@@ -230,10 +258,10 @@ class Market() :
         stock_df.rename(columns = {ticker : 'Adj Closes'}, inplace = True)
 
         plt.style.use("dark_background")
-        plt.figure(figsize = (12, 8))
+        fig_rsi = plt.figure(figsize = (12, 8))
 
         # First Subplot is Adj Closes.
-        ax1 = plt.subplot(211)
+        ax1 = fig_rsi.add_subplot(211)
         ax1.plot(
             stock_df.index, stock_df['Adj Closes'],
             linewidth = 2.5, color = 'lightgray'
@@ -248,7 +276,7 @@ class Market() :
         ax1.set_title(str(ticker) + ': Adjusted Close Price', color = 'white', fontweight = 'bold')
 
         # Second Subplot is RSI.
-        ax2 = plt.subplot(212, sharex = ax1)
+        ax2 = fig_rsi.add_subplot(212, sharex = ax1)
         ax2.plot(
             stock_df.index, stock_df['RSI'],
             linewidth = 2.5, color = 'lightgray'
@@ -274,13 +302,14 @@ class Market() :
         ax2.set_facecolor('black')
         ax2.set_title('RSI Value', color = 'white', fontweight = 'bold')
 
-        plt.show()
         plt.rcdefaults()
+
+        return fig_rsi
 
     def plot_corr(self) :
         self.corr_data = self.adj_closes.pct_change().corr(method = 'pearson').apply(lambda x : round(x * 100, 2))
 
-        plt.figure(figsize = (20, 12))
+        fig_corr = plt.figure(figsize = (20, 12))
 
         heatmap = sns.heatmap(
             data = self.corr_data,
@@ -297,7 +326,8 @@ class Market() :
         heatmap.figure.axes[-1].set_ylabel('Percentage (%)', size = 18)
 
         heatmap.set_title('Stock Correlations', fontsize = 25)
-        plt.show()
+
+        return fig_corr
 
 def test_market() :
     market = Market(
@@ -321,6 +351,6 @@ def test_market() :
     )
     market.plot_corr()
 
-    del market
+    # market.delete_records()
 
 # test_market()

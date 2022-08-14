@@ -3,7 +3,6 @@
 #######################
 
 from market import Market
-
 import datetime as dt
 
 import pandas as pd
@@ -22,31 +21,13 @@ from IPython.display import display
 class Portfolio() :
     def __init__(self, tickers, days) :
         # Table Does Not Exist.
-        if (self.records_exist() == 0) :
-            self.tickers = tickers
-
-            # Calculate Effective Dates for Stock Porfolio.
-            start = dt.datetime.today() - dt.timedelta(days)
-            effective_dates = []
-            for number_days in range((dt.datetime.today().date() - start.date()).days + 1) :
-                effective_dates.append((start + dt.timedelta(number_days)).date())
-
-            # Create and Initialize Holdings DataFrame.
-            self.holdings = pd.DataFrame(columns = tickers, index = effective_dates).fillna(0)
-            self.holdings.index.name = 'Date'
-
-            # Create Initial Stock Balances Dictionary.
-            self.balances = {}
-            for ticker in self.tickers :
-                self.balances[ticker] = 0
-
-            self.__set_holdings()
-            self.__set_balances()
-
+        if (not self.records_exist()) :
+            self.init_records(tickers = tickers, days = days)
         # Table Exists.
-        else :
+        elif (self.records_exist()) :
             self.get_tickers()
             self.get_holdings()
+            self.get_balances()
 
             # Calculate Effective Dates for Stock Porfolio.
             delta = dt.datetime.today().date() - self.holdings.index[-1]
@@ -65,12 +46,10 @@ class Portfolio() :
             )
             self.holdings.index.name = 'Date'
 
-            self.get_balances()
-
-        self.__set_holdings()
+            self.set_holdings()
 
     def __del__(self) :
-        self.delete_records()
+        return
 
     @staticmethod
     def delete_records() :
@@ -109,7 +88,32 @@ class Portfolio() :
         # Close Connection.
         con.close()
 
-        return found
+        return (found == 1)
+
+    def init_records(self, tickers, days) :
+        self.tickers = tickers
+
+        # Calculate Effective Dates for Stock Porfolio.
+        start = dt.datetime.today() - dt.timedelta(days)
+        effective_dates = []
+        for number_days in range((dt.datetime.today().date() - start.date()).days + 1) :
+            effective_dates.append((start + dt.timedelta(number_days)).date())
+
+        # Create and Initialize Holdings DataFrame.
+        self.holdings = pd.DataFrame(columns = tickers, index = effective_dates).fillna(0)
+        self.holdings.index.name = 'Date'
+
+        # Create Initial Stock Balances Dictionary.
+        self.balances = {}
+        for ticker in self.tickers :
+            self.balances[ticker] = 0
+
+        self.set_holdings()
+        self.set_balances()
+
+    def reset(self, tickers, days) :
+        self.delete_records()
+        self.init_records(tickers = tickers, days = days)
 
     def get_tickers(self) :
         # Connect To Database.
@@ -129,7 +133,6 @@ class Portfolio() :
         # Close Connection.
         con.close()
 
-        # Set Tickers.
         self.tickers = columns_df['name'][columns_df['name'] != 'Date'].to_list()
 
         return self.tickers
@@ -175,7 +178,7 @@ class Portfolio() :
 
         return self.balances
 
-    def __set_holdings(self) :
+    def set_holdings(self) :
         # Connect To Database.
         con = sqlite3.connect('stock_trades.db')
         # Create Cursor.
@@ -192,7 +195,7 @@ class Portfolio() :
         # Close Connection.
         con.close()
 
-    def __set_balances(self) :
+    def set_balances(self) :
         # Connect To Database.
         con = sqlite3.connect('stock_trades.db')
         # Create Cursor.
@@ -223,8 +226,8 @@ class Portfolio() :
         # Add New Deposits to Balances.
         self.balances[ticker] += shares * float(adj_closes.at[date, ticker])
 
-        self.__set_holdings()
-        self.__set_balances()
+        self.set_holdings()
+        self.set_balances()
 
     def sell_shares(self, ticker, shares, adj_closes, date) :
         # Check That Holdings for the Effective Dates Exceeds Number of Shares to Sell.
@@ -250,21 +253,24 @@ class Portfolio() :
         # Calculate Remaining Balance From Initial Deposits.
         self.balances[ticker] = round(self.balances[ticker] * self.holdings.at[date, ticker]/(self.holdings.at[date, ticker] + shares), 2)
 
-        self.__set_holdings()
-        self.__set_balances()
+        self.set_holdings()
+        self.set_balances()
 
         return liquidated
 
     def add_ticker(self, new_ticker) :
-        self.tickers.append(new_ticker)
+        if not (new_ticker in self.tickers) :
+            self.tickers.append(new_ticker)
 
-        # Initialize Holdings.
-        self.holdings[new_ticker] = [0 for i in range(len(self.holdings.index))]
-        self.__set_holdings()
+            # Initialize Holdings.
+            self.holdings[new_ticker] = [0 for i in range(len(self.holdings.index))]
+            self.set_holdings()
 
-        # Initialize Balances.
-        self.balances[new_ticker] = 0
-        self.__set_balances()
+            # Initialize Balances.
+            self.balances[new_ticker] = 0
+            self.set_balances()
+
+        return self.tickers
 
     def __calculate_balance(self, adj_closes, effective_holdings, date) :
         # Calculate Sum of Current Balances for All Tickers.
@@ -304,14 +310,13 @@ class Portfolio() :
         return profits
 
     def display_portfolio(self, adj_closes) :
-
         # Calculate Current Balances and Profits for Tickers.
         last_close = adj_closes.index[-1]
         current_balances = self.calculate_balances(adj_closes = adj_closes, date = last_close)
         profits = self.calculate_profits(adj_closes = adj_closes, date = last_close)
 
-        fig, ax = plt.subplots(figsize = (16, 8))
-        fig.patch.set_facecolor('#a9a9a9')
+        fig_portfolio, ax = plt.subplots(figsize = (16, 8))
+        fig_portfolio.patch.set_facecolor('#a9a9a9')
         ax.set_title('Stock Portfolio', color = 'white', fontweight = 'bold', size = 20)
 
         ax.tick_params(axis = 'x', color = 'white')
@@ -379,8 +384,9 @@ class Portfolio() :
             )
             offset -= 0.15
 
-        plt.show()
         plt.rcdefaults()
+
+        return fig_portfolio
 
 def test_portfolio() :
     market = Market(
@@ -460,4 +466,4 @@ def test_portfolio() :
 
     portfolio.display_portfolio(adj_closes = market.get_adjcloses())
 
-# test_portfolio()
+test_portfolio()
