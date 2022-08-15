@@ -2,6 +2,8 @@
 ############## Modules #################
 ########################################
 
+from constants import *
+
 import tkinter as tk
 from tkinter.font import Font
 from tkinter import ttk

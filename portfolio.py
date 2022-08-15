@@ -309,15 +309,15 @@ class Portfolio() :
             )
         return profits
 
-    def display_portfolio(self, adj_closes) :
+    def display_portfolio(self, adj_closes, name) :
         # Calculate Current Balances and Profits for Tickers.
         last_close = adj_closes.index[-1]
         current_balances = self.calculate_balances(adj_closes = adj_closes, date = last_close)
         profits = self.calculate_profits(adj_closes = adj_closes, date = last_close)
 
-        fig_portfolio, ax = plt.subplots(figsize = (16, 8))
+        fig_portfolio, ax = plt.subplots(figsize = (7, 4), dpi = 85)
         fig_portfolio.patch.set_facecolor('#a9a9a9')
-        ax.set_title('Stock Portfolio', color = 'white', fontweight = 'bold', size = 20)
+        ax.set_title(f"{name}'s Portfolio", color = "white", fontweight = "bold", size = 15)
 
         ax.tick_params(axis = 'x', color = 'white')
         ax.tick_params(axis = 'y', color = 'white')
@@ -333,8 +333,8 @@ class Portfolio() :
 
         [text.set_color('white') for text in texts]
 
-        plt.setp(texts, size = 10, weight = 'bold')
-        plt.setp(autotexts, size = 10, weight = 'bold')
+        plt.setp(texts, size = 8, weight = 'bold')
+        plt.setp(autotexts, size = 8, weight = 'bold')
 
         chart_center = plt.Circle((0, 0), 0.45, color = 'black')
         plt.gca().add_artist(chart_center)
@@ -343,7 +343,7 @@ class Portfolio() :
         ax.text(
             x = -2, y = 1,
             s = 'Portfolio Preview',
-            fontsize = 14,
+            fontsize = 8,
             fontweight = 'bold',
             color = 'white',
             verticalalignment = 'center',
@@ -354,7 +354,7 @@ class Portfolio() :
         ax.text(
             x = -2, y = 0.85,
             s = f'Total Value : {sum(current_balances.values()):.2f} USD',
-            fontsize = 12,
+            fontsize = 8,
             fontweight = 'semibold',
             color = 'white',
             verticalalignment = 'center',
@@ -376,7 +376,7 @@ class Portfolio() :
             ax.text(
                 x = -2, y = 0.85 + offset,
                 s = profit_display,
-                fontsize = 12,
+                fontsize = 8,
                 fontweight = 'semibold',
                 color = text_color,
                 verticalalignment = 'center',
@@ -434,7 +434,7 @@ def test_portfolio() :
         date = dt.date(2022, 3, 14),
     )
 
-    portfolio.display_portfolio(adj_closes = market.get_adjcloses())
+    portfolio.display_portfolio(adj_closes = market.get_adjcloses(), name = "Jack")
 
     revenue = portfolio.sell_shares(
         ticker = 'CLVS',
@@ -444,7 +444,7 @@ def test_portfolio() :
     )
     print(revenue)
 
-    portfolio.display_portfolio(market.get_adjcloses())
+    portfolio.display_portfolio(market.get_adjcloses(), name = "Jordan")
 
     market.add_ticker('WMT')
     portfolio.add_ticker('WMT')
@@ -466,4 +466,4 @@ def test_portfolio() :
 
     portfolio.display_portfolio(adj_closes = market.get_adjcloses())
 
-test_portfolio()
+# test_portfolio()

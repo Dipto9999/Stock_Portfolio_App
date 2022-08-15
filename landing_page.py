@@ -2,25 +2,22 @@
 ############## Modules #################
 ########################################
 
-from constants import *
 from default_page import *
 from portfolio import Portfolio
+from market import Market
 
 import datetime as dt
-
-########################################
-############## Constants ###############
-########################################
-
-CREATION_DAYS = 1000
 
 ######################################
 ############## Classes ###############
 ######################################
 
 class LandingPage(DefaultPage) :
-    def __init__(self, frame, master) :
+    def __init__(self, frame, master, market, portfolio, name) :
         super(LandingPage, self).__init__(frame, master)
+
+        self.market = market
+        self.portfolio = portfolio
 
         ###########################
         ### New Portfolio Frame ###
@@ -94,7 +91,7 @@ class LandingPage(DefaultPage) :
         self.submitButton.grid(row = 6, column = 2, padx = 10, pady = 10, sticky = tk.E)
 
     def add_portfolio(self, tickers, days) :
-        if Portfolio.records_exist() == 0 :
+        if not Portfolio.records_exist() :
             self.portfolio = Portfolio(tickers = tickers, days = days)
         if not hasattr(self, "confirm_destroy_portfolio") or not self.confirm_destroy_portfolio.winfo_exists() :
             self.confirm_destroy_portfolio = ConfirmPortfolioWindow(self, name = self.first_name.get(), tickers = tickers, days = days)
@@ -118,7 +115,7 @@ class ConfirmPortfolioWindow(DefaultWindow) :
 
         # Create Label Widgets.
         self.confirmation_label = tk.Label(self.confirmation_frame,
-            text = f'Hi {name},\nYou will destroy your existing portfolio.',
+            text = f'Hi {name},\nYou will destroy the existing portfolio.',
             bg = 'white', fg = 'black', font = self.general_label_font, relief = 'flat', justify = tk.LEFT
         )
 
@@ -135,6 +132,7 @@ class ConfirmPortfolioWindow(DefaultWindow) :
         self.abortButton.grid(row = 1, column = 1, padx = (0, 5), pady = 5, sticky = tk.E)
 
     def add_portfolio(self, tickers, days) :
-        Portfolio.delete_records()
-        self.portfolio = Portfolio(tickers = tickers, days = days)
+        self.market.reset(tickers = tickers, days = days)
+        self.portfolio.reset(tickers = tickers, days = days)
+
         self.destroy()
