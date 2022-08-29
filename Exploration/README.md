@@ -16,7 +16,7 @@ An exploration of historical records and investor activity for the stock market.
 
 ## Market
 
-In this analysis, we are primarily considering the $adjusted \hspace{1mm} closing$ prices over the past $365$ days</i>.
+In this analysis, we are primarily considering the $adjusted$ $closing$ prices over the past $365$ days</i>.
 
 <p align = "center"><img src = "figures/Market_Prices.png" width = "50%" height = "50%" title = "Market Prices"></p>
 
@@ -26,19 +26,13 @@ This graph above is produced to show the price fluctuations from this time perio
 
 We have visualized the stock prices for an individual ticket along with its $RSI$.
 
-<center>
 
-$ RSI = 100 - {100 \over {1.0 + {\overline{gain} \over \mid \overline{loss}\mid }}} ,where $
-
-$ \overline{gain} = { \sum_{n=0} ^{N} p_n - p_{n-1} \over N } \hspace{1mm} if \hspace{1mm}  p_n > p_{n-1} $, $ \overline{loss} = { \sum_{n=0} ^{N} \mid p_n - p_{n-1} \mid \over N } \hspace{1mm} if \hspace{1mm}  p_n < p_{n-1} $
-
-</center>
-
+<p align = "center"><img src = "figures/RSI_equation.png" width = "40%" height = "40%" title = "RSI equation"></p>
 <p align = "center"><img src = "figures/TSLA_RSI.png" width = "40%" height = "40%" title = "Tesla Stock RSI"></p>
 
 ### Stock Correlations
 
-We have included a `seaborn` heatmap of the $ Pearson \hspace{1mm} correlation $ between the stock prices. These are expressed as a $ percentage $ here.
+We have included a `seaborn` heatmap of the $Pearson$ $correlation$ between the stock prices. These are expressed as a $percentage$ here.
 
 
 <p align = "center"><img src = "figures/Stock_Correlations.png" width = "40%" height = "40%" title = "Stock Price Correlation"></p>
@@ -49,7 +43,7 @@ An exploration of investor activity is implemented through modification of the `
 
 ### Example
 
-Here is an example of a stock portfolio I had for a period of time, as well as the effective balances on $ 2022-08-28 $.
+Here is an example of a stock portfolio I had for a period of time, as well as the effective balances on $2022-08-28$.
 
 <p align = "left">
     <img src = "figures/portfolio_df.png" width = "30%" height = "15%" title = "Portfolio DataFrame">

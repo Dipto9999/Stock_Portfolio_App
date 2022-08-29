@@ -25,7 +25,7 @@ We used the <b>Tkinter</b> standard interface to create the <b>GUI</b> for the u
 
 The [(`main.py`)](main.py) <b>Python</b> file must be run to add, delete, or modify portfolios. This can be done as shown below.
 
-There is a [(`exploration.ipynb`)](Exploration) <b>Jupyter Notebook</b> with the initial data science exploration of stock portfolios.
+There is a [(`exploration.ipynb`)](Exploration/exploration.ipynb) <b>Jupyter Notebook</b> with the initial data science exploration of stock portfolios.
 
 
 ## Credit
