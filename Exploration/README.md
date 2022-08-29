@@ -47,7 +47,7 @@ Here is an example of a stock portfolio I had for a period of time, as well as t
 
 <p align = "left">
     <img src = "figures/portfolio_df.png" width = "30%" height = "15%" title = "Portfolio DataFrame">
-    <img src = "figures/balances_dict.png" width = "30%" height = "30%" title = "Portfolio Balances">
+    <img src = "figures/balances_dict.png" width = "20%" height = "20%" title = "Portfolio Balances">
 </p>
 
 ### Preview
