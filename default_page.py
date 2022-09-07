@@ -12,13 +12,10 @@ from tkinter import ttk
 ############## Classes ###############
 ######################################
 
-class DefaultPage(tk.Frame) :
-    def __init__(self, frame, master) :
+class DefaultFrame(tk.Frame) :
+    def __init__(self, master) :
         # Initialize Frame.
-        tk.Frame.__init__(self, frame)
-
-        master.title('Stock Portfolio')
-        master.iconbitmap('Images\Icons\Stocks.ico')
+        tk.Frame.__init__(self, master)
 
         self.config(bg = 'black')
 
@@ -35,8 +32,18 @@ class DefaultPage(tk.Frame) :
         self.general_entry_bg = '#6699CC'
         self.general_entry_font = Font(family = 'Ubuntu Mono', size = 10, weight = 'normal')
 
+class DefaultPage(DefaultFrame) :
+    def __init__(self, frame, master) :
+        # Initialize Frame.
+        super(DefaultPage, self).__init__(frame)
+
+        self.master = master
+
+        self.master.title('Stock Portfolio')
+        self.master.iconbitmap('Images\Icons\Stocks.ico')
+
 class DefaultWindow(tk.Toplevel) :
-    def __init__(self, home_page) :
+    def __init__(self) :
         # Can Initialize GUI Implicitly.
         super().__init__()
 
@@ -56,9 +63,54 @@ class DefaultWindow(tk.Toplevel) :
         self.general_entry_bg = '#6699CC'
         self.general_entry_font = Font(family = 'Ubuntu Mono', size = 10, weight = 'normal')
 
+class ConfirmationWindow(DefaultWindow) :
+    def __init__(self, master, message) :
+        super(ConfirmationWindow, self).__init__()
+
+        self.master = master
+
+        self.title('Confirmation')
+
+        ##########################
+        ### Confirmation Frame ###
+        ##########################
+
+        # Create and Configure Frame.
+        self.confirmation_frame = tk.Frame(self)
+        self.confirmation_frame.configure(bg = 'white')
+
+        # Position Frame.
+        self.confirmation_frame.pack(padx = 5, pady = (5,10))
+
+        # Create Label Widget.
+        self.confirmation_label = tk.Label(self.confirmation_frame,
+            text = message,
+            bg = 'white', fg = 'black', font = self.general_label_font, relief = 'flat', justify = tk.LEFT
+        )
+
+        # Create Button Widgets.
+        self.confirmButton = tk.Button(
+            self.confirmation_frame, text = 'Confirm', bg = self.button_bg, fg = 'white',
+            font = self.button_font, borderwidth = 2, relief = 'raised',
+            command = self.confirm
+        )
+        self.abortButton = tk.Button(
+            self.confirmation_frame, text = 'Abort', bg = '#232023', fg = 'white',
+            font = self.button_font, borderwidth = 2, relief = 'raised', command = self.destroy
+        )
+
+        # Position Widgets.
+        self.confirmation_label.grid(row = 0, column = 0, columnspan = 2, padx = 5, pady = (0, 5), sticky = tk.N + tk.E + tk.S + tk.W)
+
+        self.confirmButton.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = tk.W)
+        self.abortButton.grid(row = 1, column = 1, padx = (0, 5), pady = 5, sticky = tk.E)
+
+    def confirm(self) :
+        pass
+
 class DefaultRecordsWindow(DefaultWindow) :
     def __init__(self, home_page) :
-        super(DefaultRecordsWindow, self).__init__(home_page)
+        super(DefaultRecordsWindow, self).__init__()
 
         self.title('Records')
         self.iconbitmap('Images/Icons/Stocks.ico')

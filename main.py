@@ -4,20 +4,18 @@
 
 from constants import *
 
+import datetime as dt
+
 import tkinter as tk
 
-from landing_page import LandingPage
+from functools import partial
+
+from registration_page import RegistrationPage
 from portfolio_page import PortfolioPage
 from market_page import MarketPage
 
 from market import Market
 from portfolio import Portfolio
-
-########################################
-############## Constants ###############
-########################################
-
-LANDING_PAGE = 'LandingPage'
 
 ######################################
 ############## Classes ###############
@@ -27,6 +25,9 @@ class GUI(tk.Tk) :
     def __init__(self, market, portfolio) :
         # Can Initialize GUI Implicitly.
         super().__init__()
+
+        self.market = market
+        self.portfolio = portfolio
 
         self.config(bg = 'black')
 
@@ -41,8 +42,19 @@ class GUI(tk.Tk) :
         self.toplevel_menu.add_cascade(label = 'Pages', menu = self.pages_menu)
 
         # Call Functions to Change Pages.
-        self.pages_menu.add_command(label = 'View Portfolio', command = lambda: self.openPage('PortfolioPage'))
-        self.pages_menu.add_command(label = 'View Market', command = lambda: self.openPage('MarketPage'))
+        self.landing_page = REGISTRATION_PAGE if (Portfolio.get_name_record() == 'NA') else PORTFOLIO_PAGE
+        self.menu_labels = {
+            REGISTRATION_PAGE : 'New Portfolio',
+            PORTFOLIO_PAGE : 'View Portfolio',
+            MARKET_PAGE : 'View Market'
+        }
+
+        for key, page_label in self.menu_labels.items() :
+            self.pages_menu.add_command(label = page_label, command = partial(self.openPage, key))
+
+        if (portfolio.get_name() == 'NA') :
+            self.pages_menu.entryconfig(index = 'View Portfolio', state = 'disabled')
+            self.pages_menu.entryconfig(index = 'View Market', state = 'disabled')
 
         self.toplevel_frame = tk.Frame(self)
 
@@ -58,35 +70,53 @@ class GUI(tk.Tk) :
 
         # Initialize Dictionaries With Page Classes.
         self.pages = {}
-        for Page in (LandingPage, PortfolioPage, MarketPage) :
-            self.current_page = Page(frame = self.toplevel_frame, master = self, market = market, portfolio = portfolio, name = "Muntakim")
+        for Page in (RegistrationPage, PortfolioPage, MarketPage) :
+            self.current_page = Page(frame = self.toplevel_frame, master = self, market = market, portfolio = portfolio)
 
             self.pages[Page.__name__] = self.current_page
 
             # Must Use Grid System for Positioning Pages on Window.
             self.current_page.grid(row = 0, column = 0, sticky = 'nsew')
 
-        self.openPage(LANDING_PAGE)
+        self.openPage(self.landing_page)
 
     def openPage(self, page_name) :
         # Show a Frame for the Given Page.
         self.current_page = self.pages[page_name]
         self.current_page.tkraise()
 
-        if (page_name == LANDING_PAGE) :
+        # Configure Page Geometry.
+        if (page_name == REGISTRATION_PAGE) :
             self.geometry("450x250")
         else :
-            self.geometry("800x350")
+            self.geometry("950x350")
+
+        if (page_name == PORTFOLIO_PAGE) :
+            self.current_page.display_portfolio(self.market.get_adjcloses())
+
+        self.refreshMenu(page_name)
+
+    def refreshMenu(self, page_name) :
+        # Configure Menu Commands.
+        for key, page_label in self.menu_labels.items() :
+            if (key == page_name or Portfolio.get_name_record() == 'NA') :
+                self.pages_menu.entryconfig(index = page_label, state = 'disabled')
+            else :
+                self.pages_menu.entryconfig(index = page_label, state = 'normal')
 
 ###################################
 ############## Main ###############
 ###################################
 
 if __name__ == '__main__' :
+    name = Portfolio.get_name_record()
+    tickers = Market.get_ticker_records()
+
+    days = (dt.datetime.today().date() - Market.get_creation_date()).days
 
     # Create Portfolio When Application is Opened.
-    market = Market(tickers = STANDARD_TICKERS, days = CREATION_DAYS)
-    portfolio = Portfolio(tickers = STANDARD_TICKERS, days = CREATION_DAYS)
+    market = Market(tickers = tickers, days = days)
+    portfolio = Portfolio(name = name, tickers = tickers, days = days)
 
     gui = GUI(market = market, portfolio = portfolio)
 

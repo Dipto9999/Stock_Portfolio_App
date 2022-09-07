@@ -2,8 +2,12 @@
 ### Import Modules. ###
 #######################
 
+from constants import *
+
 from market import Market
+
 import datetime as dt
+import math
 
 import pandas as pd
 import pandas_datareader as web
@@ -19,13 +23,15 @@ from IPython.display import display
 #################
 
 class Portfolio() :
-    def __init__(self, tickers, days) :
+    def __init__(self, name, tickers, days) :
         # Table Does Not Exist.
         if (not self.records_exist()) :
-            self.init_records(tickers = tickers, days = days)
+            self.init_records(name = name, tickers = tickers, days = days)
         # Table Exists.
         elif (self.records_exist()) :
+            self.get_name()
             self.get_tickers()
+
             self.get_holdings()
             self.get_balances()
 
@@ -53,17 +59,19 @@ class Portfolio() :
 
     @staticmethod
     def delete_records() :
+        name = Portfolio.get_name_record()
+
         # Connect To Database.
         con = sqlite3.connect('stock_trades.db')
         # Create Cursor.
         c = con.cursor()
 
         # Drop Holdings Table From SQLite Database.
-        statement = ''' DROP TABLE IF EXISTS holdings '''
+        statement = f''' DROP TABLE IF EXISTS {name}_holdings '''
         c.execute(statement)
 
         # Drop Balances Table From SQLite Database.
-        statement = ''' DROP TABLE IF EXISTS balances '''
+        statement = f''' DROP TABLE IF EXISTS {name}_balances '''
         c.execute(statement)
 
         # Close Connection.
@@ -77,11 +85,11 @@ class Portfolio() :
         c = con.cursor()
 
         # Check If Tables Exist in SQLite Database.
-        statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME = 'holdings' '''
+        statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME LIKE '%_holdings' '''
         c.execute(statement)
         found = pd.DataFrame(c.fetchall())[0][0]
 
-        statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME = 'balances' '''
+        statement = ''' SELECT COUNT(*) FROM sqlite_master WHERE TYPE = 'table' AND NAME LIKE '%_balances' '''
         c.execute(statement)
         found &= pd.DataFrame(c.fetchall())[0][0]
 
@@ -90,7 +98,30 @@ class Portfolio() :
 
         return (found == 1)
 
-    def init_records(self, tickers, days) :
+    @staticmethod
+    def get_name_record() :
+        if (not Portfolio.records_exist()) :
+            name = 'NA'
+        # Table Exists.
+        elif (Portfolio.records_exist()) :
+            # Connect To Database.
+            con = sqlite3.connect('stock_trades.db')
+            # Create Cursor.
+            c = con.cursor()
+
+            statement = f''' SELECT NAME FROM sqlite_schema WHERE type='table' AND NAME LIKE '%_holdings' '''
+
+            c.execute(statement)
+
+            name = c.fetchall()[0][0].removesuffix('_holdings')
+
+            # Close Connection.
+            con.close()
+
+        return name
+
+    def init_records(self, name, tickers, days) :
+        self.name = name
         self.tickers = tickers
 
         # Calculate Effective Dates for Stock Porfolio.
@@ -111,9 +142,14 @@ class Portfolio() :
         self.set_holdings()
         self.set_balances()
 
-    def reset(self, tickers, days) :
+    def reset(self, name, tickers, days) :
         self.delete_records()
-        self.init_records(tickers = tickers, days = days)
+        self.init_records(name = name, tickers = tickers, days = days)
+
+    def get_name(self) :
+        self.name = self.get_name_record()
+
+        return self.name
 
     def get_tickers(self) :
         # Connect To Database.
@@ -122,7 +158,7 @@ class Portfolio() :
         c = con.cursor()
 
         # Query Holdings Table Column Names.
-        statement = ''' PRAGMA table_info(holdings) '''
+        statement = f''' PRAGMA table_info({self.name}_holdings) '''
         c.execute(statement)
 
         columns_df = pd.DataFrame(
@@ -144,7 +180,7 @@ class Portfolio() :
         c = con.cursor()
 
         # Query Holdings Table Data from SQLite Database.
-        statement = ''' SELECT * FROM holdings '''
+        statement = f''' SELECT * FROM '{self.name}_holdings' '''
         c.execute(statement)
 
         # Create Holdings Dataframe.
@@ -166,7 +202,7 @@ class Portfolio() :
         c = con.cursor()
 
         # Query Balances Table from SQLite Database.
-        statement = ''' SELECT * FROM balances '''
+        statement = f''' SELECT * FROM '{self.name}_balances' '''
         c.execute(statement)
 
         # Create Balances Dictionary.
@@ -186,7 +222,7 @@ class Portfolio() :
 
         # Replace Holdings Table on SQLite Database.
         self.holdings.to_sql(
-            name = 'holdings',
+            name = f'{self.name}_holdings',
             con = con,
             if_exists = 'replace',
             index = True,
@@ -207,7 +243,7 @@ class Portfolio() :
 
         # Replace Balances Table on SQLite Database.
         balances_df.to_sql(
-            name = 'balances',
+            name = f'{self.name}_balances',
             con = con,
             if_exists = 'replace',
             index = False,
@@ -217,6 +253,10 @@ class Portfolio() :
         con.close()
 
     def buy_shares(self, ticker, shares, adj_closes, date) :
+        # Stock Price Data Unavailable.
+        if math.isnan(adj_closes.at[date, ticker]) :
+            return 0
+
         # Add Shares to Effective Dates in Holdings DataFrame.
         for current, row in self.holdings.iterrows() :
             difference = (current - date).days
@@ -309,7 +349,7 @@ class Portfolio() :
             )
         return profits
 
-    def display_portfolio(self, adj_closes, name) :
+    def display_portfolio(self, adj_closes) :
         # Calculate Current Balances and Profits for Tickers.
         last_close = adj_closes.index[-1]
         current_balances = self.calculate_balances(adj_closes = adj_closes, date = last_close)
@@ -317,72 +357,89 @@ class Portfolio() :
 
         fig_portfolio, ax = plt.subplots(figsize = (7, 4), dpi = 85)
         fig_portfolio.patch.set_facecolor('#a9a9a9')
-        ax.set_title(f"{name}'s Portfolio", color = "white", fontweight = "bold", size = 15)
 
-        ax.tick_params(axis = 'x', color = 'white')
-        ax.tick_params(axis = 'y', color = 'white')
+        if sum(self.balances.values()) == 0 :
+            ax.set_title("Empty Portfolio", color = "white", fontweight = "bold", size = 15)
 
-        # Display Pie Chart of Current Balances.
-        wedges, texts, autotexts = ax.pie(
-            current_balances.values(),
-            labels = current_balances.keys(),
-            textprops = dict(color = 'black'),
-            autopct = '%1.1f%%',
-            pctdistance = 0.8
-        )
+            ax.set_facecolor('black')
 
-        [text.set_color('white') for text in texts]
+            # Remove Ticks and Labels on Axes.
+            ax.axes.xaxis.set_visible(False)
+            ax.axes.yaxis.set_visible(False)
 
-        plt.setp(texts, size = 8, weight = 'bold')
-        plt.setp(autotexts, size = 8, weight = 'bold')
+        elif (sum(self.balances.values()) > 0) :
+            ax.set_title(f"{self.name}'s Portfolio", color = "white", fontweight = "bold", size = 15)
 
-        chart_center = plt.Circle((0, 0), 0.45, color = 'black')
-        plt.gca().add_artist(chart_center)
+            ax.set_facecolor('white')
 
-        # Display Portfolio Preview Label.
-        ax.text(
-            x = -2, y = 1,
-            s = 'Portfolio Preview',
-            fontsize = 8,
-            fontweight = 'bold',
-            color = 'white',
-            verticalalignment = 'center',
-            horizontalalignment = 'center'
-        )
+            # Remove Ticks and Labels on Axes.
+            ax.axes.xaxis.set_visible(True)
+            ax.axes.yaxis.set_visible(True)
 
-        # Display Current Balances.
-        ax.text(
-            x = -2, y = 0.85,
-            s = f'Total Value : {sum(current_balances.values()):.2f} USD',
-            fontsize = 8,
-            fontweight = 'semibold',
-            color = 'white',
-            verticalalignment = 'center',
-            horizontalalignment = 'center'
-        )
+            ax.tick_params(axis = 'x', color = 'white')
+            ax.tick_params(axis = 'y', color = 'white')
 
-        # Display Profits.
-        offset = -0.15
-        for ticker, profit in profits.items() :
-            if profit > 0 :
-                profit_display = f'{ticker} : +{profit:.2f} USD'
-                text_color = 'green'
-            if profit < 0 :
-                profit_display = f'{ticker} : {profit:.2f} USD'
-                text_color = 'red'
-            if profit == 0 :
-                profit_display = f'{ticker} : {profit:.2f} USD'
-                text_color = 'white'
+            # Display Pie Chart of Current Balances.
+            wedges, texts, autotexts = ax.pie(
+                current_balances.values(),
+                labels = current_balances.keys(),
+                textprops = dict(color = 'black'),
+                autopct = '%1.1f%%',
+                pctdistance = 0.8
+            )
+
+            [text.set_color('white') for text in texts]
+
+            plt.setp(texts, size = 8, weight = 'bold')
+            plt.setp(autotexts, size = 8, weight = 'bold')
+
+            chart_center = plt.Circle((0, 0), 0.45, color = 'black')
+            plt.gca().add_artist(chart_center)
+
+            # Display Portfolio Preview Label.
             ax.text(
-                x = -2, y = 0.85 + offset,
-                s = profit_display,
+                x = -2, y = 1,
+                s = 'Portfolio Preview',
                 fontsize = 8,
-                fontweight = 'semibold',
-                color = text_color,
+                fontweight = 'bold',
+                color = 'white',
                 verticalalignment = 'center',
                 horizontalalignment = 'center'
             )
-            offset -= 0.15
+
+            # Display Current Balances.
+            ax.text(
+                x = -2, y = 0.85,
+                s = f'Total Value : {sum(current_balances.values()):.2f} USD',
+                fontsize = 8,
+                fontweight = 'semibold',
+                color = 'white',
+                verticalalignment = 'center',
+                horizontalalignment = 'center'
+            )
+
+            # Display Profits.
+            offset = -0.15
+            for ticker, profit in profits.items() :
+                if profit > 0 :
+                    profit_display = f'{ticker} : +{profit:.2f} USD'
+                    text_color = 'green'
+                if profit < 0 :
+                    profit_display = f'{ticker} : {profit:.2f} USD'
+                    text_color = 'red'
+                if profit == 0 :
+                    profit_display = f'{ticker} : {profit:.2f} USD'
+                    text_color = 'white'
+                ax.text(
+                    x = -2, y = 0.85 + offset,
+                    s = profit_display,
+                    fontsize = 8,
+                    fontweight = 'semibold',
+                    color = text_color,
+                    verticalalignment = 'center',
+                    horizontalalignment = 'center'
+                )
+                offset -= 0.15
 
         plt.rcdefaults()
 
@@ -394,10 +451,13 @@ def test_portfolio() :
         days = 365
     )
 
+    print(Portfolio.get_name_record())
     portfolio = Portfolio(
+        name = 'Jack',
         tickers = ['TSLA', 'MSFT', 'AAPL', 'FB', 'NVDA', 'AMD', 'QCOM', 'CLVS'],
         days = 365
     )
+    print(portfolio.get_name())
 
     portfolio.buy_shares(
         ticker = 'AAPL',
@@ -434,7 +494,7 @@ def test_portfolio() :
         date = dt.date(2022, 3, 14),
     )
 
-    portfolio.display_portfolio(adj_closes = market.get_adjcloses(), name = "Jack")
+    portfolio.display_portfolio(adj_closes = market.get_adjcloses())
 
     revenue = portfolio.sell_shares(
         ticker = 'CLVS',
@@ -444,7 +504,7 @@ def test_portfolio() :
     )
     print(revenue)
 
-    portfolio.display_portfolio(market.get_adjcloses(), name = "Jordan")
+    portfolio.display_portfolio(market.get_adjcloses())
 
     market.add_ticker('WMT')
     portfolio.add_ticker('WMT')

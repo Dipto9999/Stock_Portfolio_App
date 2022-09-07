@@ -1,2 +1,6 @@
 STANDARD_TICKERS = ['TSLA', 'MSFT', 'AAPL', 'FB', 'NVDA', 'AMD', 'QCOM', 'CLVS']
-CREATION_DAYS = 1000
+MAX_DAYS = 1000
+
+REGISTRATION_PAGE = 'RegistrationPage'
+PORTFOLIO_PAGE = 'PortfolioPage'
+MARKET_PAGE = 'MarketPage'

@@ -2,6 +2,8 @@
 ### Import Modules. ###
 #######################
 
+from constants import *
+
 import datetime as dt
 
 import pandas as pd
@@ -104,6 +106,58 @@ class Market() :
 
         return (found == 1)
 
+    @staticmethod
+    def get_ticker_records() :
+        if (not Market.records_exist()) :
+            tickers = STANDARD_TICKERS
+        elif (Market.records_exist()) :
+            # Connect To Database.
+            con = sqlite3.connect('stock_trades.db')
+            # Create Cursor.
+            c = con.cursor()
+
+            # Query Adjusted Closes Table Column Names.
+            statement = ''' PRAGMA table_info(adj_closes) '''
+            c.execute(statement)
+
+            columns_df = pd.DataFrame(
+                data = c.fetchall(),
+                columns = ['cid', 'name', 'type', 'notnull', 'dflt_value', 'pk']
+            )
+
+            # Close Connection.
+            con.close()
+
+            tickers = columns_df['name'][columns_df['name'] != 'Date'].to_list()
+
+        return tickers
+
+    @staticmethod
+    def get_creation_date() :
+        # Table Does Not Exist.
+        if (not Market.records_exist()) :
+            creation_date = (dt.datetime.today() - dt.timedelta(MAX_DAYS)).date()
+        elif (Market.records_exist()) :
+            tickers = Market.get_ticker_records()
+
+            # Connect To Database.
+            con = sqlite3.connect('stock_trades.db')
+            # Create Cursor.
+            c = con.cursor()
+
+            statement = ''' SELECT * FROM 'adj_closes' '''
+            c.execute(statement)
+
+            # Query Adjusted Closes Table Data From SQLite Database and Create Adjusted Closes DataFrame.
+            adj_closes = pd.DataFrame(c.fetchall(), columns = ['Date'] + tickers)
+
+            # Close Connection.
+            con.close()
+
+            creation_date = dt.datetime.strptime(adj_closes['Date'].values[0], '%Y-%m-%d').date()
+
+        return creation_date
+
     def init_records(self, tickers, days) :
         self.tickers = tickers
         start = dt.datetime.today() - dt.timedelta(days)
@@ -132,29 +186,14 @@ class Market() :
         self.dates = [day.date() for day in self.adj_closes.index]
         self.adj_closes = self.adj_closes.reindex(self.dates)
 
+        self.set_adjcloses()
+
     def reset(self, tickers, days) :
         self.delete_records()
         self.init_records(tickers = tickers, days = days)
 
     def get_tickers(self) :
-        # Connect To Database.
-        con = sqlite3.connect('stock_trades.db')
-        # Create Cursor.
-        c = con.cursor()
-
-        # Query Adjusted Closes Table Column Names.
-        statement = ''' PRAGMA table_info(adj_closes) '''
-        c.execute(statement)
-
-        columns_df = pd.DataFrame(
-            data = c.fetchall(),
-            columns = ['cid', 'name', 'type', 'notnull', 'dflt_value', 'pk']
-        )
-
-        # Close Connection.
-        con.close()
-
-        self.tickers = columns_df['name'][columns_df['name'] != 'Date'].to_list()
+        self.tickers = self.get_ticker_records()
 
         return self.tickers
 
@@ -325,11 +364,14 @@ class Market() :
 
         heatmap.figure.axes[-1].set_ylabel('Percentage (%)', size = 18)
 
-        heatmap.set_title('Stock Correlations', fontsize = 25)
+        heatmap.set_title('Price Correlations', fontsize = 25)
 
         return fig_corr
 
 def test_market() :
+    tickers = Market.get_ticker_records()
+    creation_date = Market.get_creation_date()
+
     market = Market(
         tickers = ['TSLA', 'MSFT', 'AAPL', 'FB', 'NVDA', 'AMD', 'QCOM', 'CLVS'],
         days = 365
