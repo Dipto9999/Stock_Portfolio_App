@@ -136,7 +136,26 @@ class Market() :
     def get_creation_date() :
         # Table Does Not Exist.
         if (not Market.records_exist()) :
-            creation_date = (dt.datetime.today() - dt.timedelta(MAX_DAYS)).date()
+            start = (dt.datetime.today() - dt.timedelta(MAX_DAYS + 1)).date()
+
+            # Retrieve Yahoo Stock Prices.
+            try :
+                stock_prices = [
+                    web.DataReader(
+                        ticker, 'yahoo', start, dt.datetime.today()
+                    ) for ticker in STANDARD_TICKERS
+                ]
+            except :
+                return
+
+            # Create Adjusted Closes DataFrame.
+            adj_closes = {}
+            for i in range(len(STANDARD_TICKERS)) :
+                adj_closes[STANDARD_TICKERS[i]] = stock_prices[i]['Adj Close'].apply(lambda x : round(x, 2))
+            adj_closes = pd.DataFrame.from_dict(adj_closes)
+
+            creation_date = adj_closes.index[0].date()
+
         elif (Market.records_exist()) :
             tickers = Market.get_ticker_records()
 
@@ -160,7 +179,7 @@ class Market() :
 
     def init_records(self, tickers, days) :
         self.tickers = tickers
-        start = dt.datetime.today() - dt.timedelta(days)
+        start = dt.datetime.today() - dt.timedelta(days + 1)
 
         # Retrieve Yahoo Stock Prices.
         try :

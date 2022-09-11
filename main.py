@@ -22,12 +22,17 @@ from portfolio import Portfolio
 ######################################
 
 class GUI(tk.Tk) :
-    def __init__(self, market, portfolio) :
+    def __init__(self) :
         # Can Initialize GUI Implicitly.
         super().__init__()
 
-        self.market = market
-        self.portfolio = portfolio
+        name = Portfolio.get_name_record()
+        tickers = Market.get_ticker_records()
+        days = (dt.datetime.today().date() - Market.get_creation_date()).days
+
+        # Create Portfolio When Application is Opened.
+        self.market = Market(tickers = tickers, days = days)
+        self.portfolio = Portfolio(name = name, tickers = tickers, days = days)
 
         self.config(bg = 'black')
 
@@ -52,7 +57,7 @@ class GUI(tk.Tk) :
         for key, page_label in self.menu_labels.items() :
             self.pages_menu.add_command(label = page_label, command = partial(self.openPage, key))
 
-        if (portfolio.get_name() == 'NA') :
+        if (self.portfolio.get_name() == 'NA') :
             self.pages_menu.entryconfig(index = 'View Portfolio', state = 'disabled')
             self.pages_menu.entryconfig(index = 'View Market', state = 'disabled')
 
@@ -71,7 +76,7 @@ class GUI(tk.Tk) :
         # Initialize Dictionaries With Page Classes.
         self.pages = {}
         for Page in (RegistrationPage, PortfolioPage, MarketPage) :
-            self.current_page = Page(frame = self.toplevel_frame, master = self, market = market, portfolio = portfolio)
+            self.current_page = Page(frame = self.toplevel_frame, master = self, market = self.market, portfolio = self.portfolio)
 
             self.pages[Page.__name__] = self.current_page
 
@@ -109,15 +114,5 @@ class GUI(tk.Tk) :
 ###################################
 
 if __name__ == '__main__' :
-    name = Portfolio.get_name_record()
-    tickers = Market.get_ticker_records()
-
-    days = (dt.datetime.today().date() - Market.get_creation_date()).days
-
-    # Create Portfolio When Application is Opened.
-    market = Market(tickers = tickers, days = days)
-    portfolio = Portfolio(name = name, tickers = tickers, days = days)
-
-    gui = GUI(market = market, portfolio = portfolio)
-
+    gui = GUI()
     gui.mainloop()

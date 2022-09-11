@@ -252,51 +252,86 @@ class Portfolio() :
         # Close Connection.
         con.close()
 
-    def buy_shares(self, ticker, shares, adj_closes, date) :
+    def buy_shares(self, ticker, shares, adj_closes, buy_date) :
         # Stock Price Data Unavailable.
-        if math.isnan(adj_closes.at[date, ticker]) :
+        if math.isnan(adj_closes.at[buy_date, ticker]) :
             return 0
 
         # Add Shares to Effective Dates in Holdings DataFrame.
         for current, row in self.holdings.iterrows() :
-            difference = (current - date).days
+            difference = (current - buy_date).days
 
             if difference >= 0 :
                 row[ticker] += shares
         # Add New Deposits to Balances.
-        self.balances[ticker] += shares * float(adj_closes.at[date, ticker])
+        self.balances[ticker] += shares * float(adj_closes.at[buy_date, ticker])
 
         self.set_holdings()
         self.set_balances()
 
-    def sell_shares(self, ticker, shares, adj_closes, date) :
+    def get_buy_date(self, ticker, shares, sell_date) :
         # Check That Holdings for the Effective Dates Exceeds Number of Shares to Sell.
-        sold = self.holdings.at[date, ticker] >= shares
-        for current, row in self.holdings.iterrows() :
-            difference = (current - date).days
+        valid_sell = self.holdings.at[sell_date, ticker] >= shares
 
-            if difference >= 0 :
-                sold &= row[ticker] >= shares
+        buy_date = (self.holdings.index[0] - dt.timedelta(days = 1))
+        buy_date_difference = (buy_date - self.holdings.index[0]).days
 
-        if (not sold) :
-            return 0
+        for current_date, row in self.holdings.iterrows() :
+            sell_date_difference = (current_date - sell_date).days
+
+            adequate_shares = row[ticker] >= shares
+            if (adequate_shares and buy_date_difference < 0) :
+                buy_date = current_date
+                buy_date_difference = (sell_date - current_date).days
+
+            if sell_date_difference >= 0 :
+                valid_sell &= adequate_shares
+
+        if (valid_sell) :
+            return buy_date
+        else :
+            return None
+
+    def max_shares(self, ticker, effective_date) :
+        effective_holdings = self.holdings.at[effective_date, ticker]
+        current_holdings = self.holdings.at[self.holdings.index[-1], ticker]
+
+        if self.get_buy_date(ticker, effective_holdings, effective_date) is not None :
+            valid_shares = effective_holdings
+        elif (effective_holdings <= current_holdings) :
+            valid_shares = current_holdings
+        else :
+            valid_shares = self.holdings.loc[effective_date:][ticker].min()
+
+        return valid_shares
+
+    def sell_shares(self, ticker, shares, adj_closes, sell_date) :
+        buy_date = self.get_buy_date(ticker, shares, sell_date)
+
+        if (not buy_date) :
+            return 0, 0
 
         # Deduct Number of Shares for Effective Dates.
-        for current, row in self.holdings.iterrows() :
-            difference = (current - date).days
+        for current_date, row in self.holdings.iterrows() :
+            sell_date_difference = (current_date - sell_date).days
 
-            if difference >= 0 :
+            # Shares
+            if (sell_date_difference >= 0) :
                 row[ticker] -= shares
 
         # Calculate Liquidated Balance From Sold Shares.
-        liquidated = shares * float(adj_closes.at[date, ticker])
-        # Calculate Remaining Balance From Initial Deposits.
-        self.balances[ticker] = round(self.balances[ticker] * self.holdings.at[date, ticker]/(self.holdings.at[date, ticker] + shares), 2)
+        liquidated = shares * float(adj_closes.at[sell_date, ticker])
+        # Calculate Initial Deposits Of Sold Shares.
+        initial_deposits = shares * float(adj_closes.at[buy_date, ticker])
+
+        effective_profit = liquidated - initial_deposits
+
+        self.balances[ticker] -= initial_deposits
 
         self.set_holdings()
         self.set_balances()
 
-        return liquidated
+        return liquidated, effective_profit
 
     def add_ticker(self, new_ticker) :
         if not (new_ticker in self.tickers) :
@@ -358,7 +393,7 @@ class Portfolio() :
         fig_portfolio, ax = plt.subplots(figsize = (7, 4), dpi = 85)
         fig_portfolio.patch.set_facecolor('#a9a9a9')
 
-        if sum(self.balances.values()) == 0 :
+        if self.holdings.loc[self.holdings.index[-1]].sum() == 0 :
             ax.set_title("Empty Portfolio", color = "white", fontweight = "bold", size = 15)
 
             ax.set_facecolor('black')
@@ -463,48 +498,81 @@ def test_portfolio() :
         ticker = 'AAPL',
         shares = 14,
         adj_closes = market.get_adjcloses(),
-        date = dt.date(2022, 2, 18)
+        buy_date = dt.date(2022, 2, 18)
     )
 
     portfolio.buy_shares(
         ticker = 'CLVS',
         shares = 1352,
         adj_closes = market.get_adjcloses(),
-        date = dt.date(2022, 2, 18),
+        buy_date = dt.date(2022, 2, 18),
     )
 
     portfolio.buy_shares(
         ticker = 'AAPL',
         shares = 4,
         adj_closes = market.get_adjcloses(),
-        date = dt.date(2022, 2, 24)
+        buy_date = dt.date(2022, 2, 24)
     )
 
     portfolio.buy_shares(
         ticker = 'CLVS',
         shares = 415,
         adj_closes = market.get_adjcloses(),
-        date = dt.date(2022, 2, 25)
+        buy_date = dt.date(2022, 2, 25)
     )
 
     portfolio.buy_shares(
         ticker = 'AAPL',
         shares = 5,
         adj_closes = market.get_adjcloses(),
-        date = dt.date(2022, 3, 14),
+        buy_date = dt.date(2022, 3, 14),
     )
 
     portfolio.display_portfolio(adj_closes = market.get_adjcloses())
 
-    revenue = portfolio.sell_shares(
+    sell_clvs = portfolio.max_shares(
+        ticker = 'CLVS',
+        effective_date = dt.date(2022, 4, 6)
+    )
+    print(f'Max CLVS : {sell_clvs}')
+
+    revenue, effective_profit = portfolio.sell_shares(
         ticker = 'CLVS',
         shares = 1500,
         adj_closes = market.get_adjcloses(),
-        date = dt.date(2022, 4, 6)
+        sell_date = dt.date(2022, 4, 6)
     )
-    print(revenue)
+    print(f'Revenue : {revenue}\nEffective Profit : {effective_profit}')
+
+    sell_clvs = portfolio.max_shares(
+        ticker = 'CLVS',
+        effective_date = dt.date(2022, 4, 7)
+    )
+    print(f'Max CLVS : {sell_clvs}')
 
     portfolio.display_portfolio(market.get_adjcloses())
+
+    portfolio.buy_shares(
+        ticker = 'CLVS',
+        shares = 500,
+        adj_closes = market.get_adjcloses(),
+        buy_date = dt.date(2022, 5, 25)
+    )
+
+    revenue, effective_profit = portfolio.sell_shares(
+        ticker = 'CLVS',
+        shares = 600,
+        adj_closes = market.get_adjcloses(),
+        sell_date = dt.date(2022, 6, 6)
+    )
+    print(f'Revenue : {revenue}\nEffective Profit : {effective_profit}')
+
+    sell_clvs = portfolio.max_shares(
+        ticker = 'CLVS',
+        effective_date = dt.date(2022, 4, 7)
+    )
+    print(f'Max CLVS : {sell_clvs}')
 
     market.add_ticker('WMT')
     portfolio.add_ticker('WMT')
@@ -513,16 +581,16 @@ def test_portfolio() :
         ticker = 'WMT',
         shares = 5,
         adj_closes = market.get_adjcloses(),
-        date = dt.date(2022, 3, 14)
+        buy_date = dt.date(2022, 3, 14)
     )
 
-    revenue = portfolio.sell_shares(
+    revenue, effective_profit = portfolio.sell_shares(
         ticker = 'WMT',
         shares = 5,
         adj_closes = market.get_adjcloses(),
-        date = dt.date(2022, 2, 7)
+        sell_date = dt.date(2022, 2, 7)
     )
-    print(revenue)
+    print(f'Revenue : {revenue}\nEffective Profit : {effective_profit}')
 
     portfolio.display_portfolio(adj_closes = market.get_adjcloses())
 

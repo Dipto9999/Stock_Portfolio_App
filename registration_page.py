@@ -14,10 +14,7 @@ import datetime as dt
 
 class RegistrationPage(DefaultPage) :
     def __init__(self, frame, master, market, portfolio) :
-        super(RegistrationPage, self).__init__(frame, master)
-
-        self.market = market
-        self.portfolio = portfolio
+        super(RegistrationPage, self).__init__(frame, master, market, portfolio)
 
         ###########################
         ### New Portfolio Frame ###
@@ -105,7 +102,9 @@ class RegistrationPage(DefaultPage) :
 
     def replace_portfolio(self, name, tickers, days) :
         self.market.reset(tickers = tickers, days = days)
-        self.portfolio.reset(name = name, tickers = tickers, days = days)
+
+        creation_days = (dt.datetime.today().date() - Market.get_creation_date()).days
+        self.portfolio.reset(name = name, tickers = tickers, days = creation_days)
 
         self.master.openPage(PORTFOLIO_PAGE)
 

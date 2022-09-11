@@ -17,16 +17,13 @@ import datetime as dt
 
 class PortfolioPage(DefaultPage) :
     def __init__(self, frame, master, market, portfolio) :
-        super(PortfolioPage, self).__init__(frame, master)
-
-        self.market = market
-        self.portfolio = portfolio
+        super(PortfolioPage, self).__init__(frame, master, market, portfolio)
 
         # Create Frames.
         self.display_portfolio_frame = tk.Frame(self)
 
-        self.buy_stocks_frame = TransactionFrame(master = self, market = market, portfolio = portfolio, transaction = 'Buy')
-        self.sell_stocks_frame = TransactionFrame(master = self, market = market, portfolio = portfolio, transaction = 'Sell')
+        self.buy_stocks_frame = BuyFrame(master = self, market = market, portfolio = portfolio)
+        self.sell_stocks_frame = SellFrame(master = self, market = market, portfolio = portfolio)
 
         # Position Frames.
         self.display_portfolio_frame.grid(row = 0, column = 0, rowspan = 2, padx = 5, pady = (5,10))
@@ -48,14 +45,17 @@ class PortfolioPage(DefaultPage) :
         self.current_portfolio = FigureCanvasTkAgg(self.fig_portfolio, self.display_portfolio_frame)
         self.current_portfolio.get_tk_widget().pack(side = tk.LEFT, fill = tk.BOTH)
 
+        self.sell_stocks_frame.update_shares(
+            ticker = self.sell_stocks_frame.ticker.get(),
+            date = dt.datetime.strptime(self.sell_stocks_frame.transaction_date.get(),'%Y-%m-%d').date()
+        )
+
 class TransactionFrame(DefaultFrame) :
-    def __init__(self, master, market, portfolio, transaction) :
+    def __init__(self, master, market, portfolio) :
         super(TransactionFrame, self).__init__(master)
 
         self.market = market
         self.portfolio = portfolio
-
-        self.transaction = transaction
 
         self.portfolio_tickers = self.portfolio.get_tickers()
         self.dates = self.market.get_dates().tolist()
@@ -69,7 +69,7 @@ class TransactionFrame(DefaultFrame) :
         self.confirmation_frame.grid(row = 1, column = 1, rowspan = 1, padx = 5, pady = (5,10))
 
         # Create Label Widgets.
-        self.transaction_label = tk.Label(self.transaction_frame, text = transaction,
+        self.transaction_label = tk.Label(self.transaction_frame, text = 'Transaction',
             bg = master.heading_label_bg, fg = 'black', font = master.heading_label_font, borderwidth = 2, relief = 'solid', anchor = tk.W)
 
         self.ticker_label = tk.Label(self.transaction_frame, text = 'Ticker : ',
@@ -91,18 +91,9 @@ class TransactionFrame(DefaultFrame) :
         )
         self.shares = tk.Spinbox(
             self.transaction_frame,
-            values = self.get_possible_shares(
-                ticker = self.ticker.get(),
-                holdings = self.portfolio.get_holdings(),
-                effective_date = dt.datetime.strptime(self.transaction_date.get(),'%Y-%m-%d').date()
-            ),
+            values = None,
             bg = self.general_entry_bg, fg = 'black', font = self.general_entry_font, borderwidth = 2, relief = 'sunken',
         )
-
-        # Update Possible Shares When Date and Ticker Changes.
-        if (self.transaction == 'Sell') :
-            self.ticker.bind("<Button-1>", self.update_ticker)
-            self.transaction_date.bind("<Button-1>", self.update_date)
 
         # Create Button Widget.
         self.submitButton = tk.Button(self.confirmation_frame, text = 'Submit', bg = master.button_bg, fg = 'white',
@@ -128,61 +119,114 @@ class TransactionFrame(DefaultFrame) :
 
         self.submitButton.grid(row = 0, column = 1, padx = 5, pady = 5, sticky = tk.W)
 
-    def get_possible_shares(self, ticker, holdings, effective_date) :
-        if (self.transaction == 'Buy') :
-            possible_shares = [i for i in range(1, 10 + 1, 1)]
-        elif (self.transaction == 'Sell') :
-            possible_shares = [i for i in range(holdings.at[effective_date, ticker] + 1)]
-        return possible_shares
-
-    def update_ticker(self, event) :
-        index = self.portfolio_tickers.index(self.ticker.get())
-        holdings = self.portfolio.get_holdings()
-        effective_date = dt.datetime.strptime(self.transaction_date.get(),'%Y-%m-%d').date()
-
-        if ((event.x >= 145) and (index > 0)) :
-            self.shares.delete(0, tk.END)
-            if (event.y < 12 and index < (len(self.portfolio_tickers) - 1)) :
-                index += 1
-            else :
-                index -= 1
-            self.shares.config(
-                values = self.get_possible_shares(self.portfolio_tickers[index], holdings, effective_date),
-                textvariable = holdings.at[effective_date, self.portfolio_tickers[index]]
-            )
-
-    def update_date(self, event) :
-        index = self.dates.index(dt.datetime.strptime(self.transaction_date.get(),'%Y-%m-%d').date())
-        holdings = self.portfolio.get_holdings()
-        effective_ticker = self.ticker.get()
-
-        if ((event.x >= 145) and (index > 0)) :
-            self.shares.delete(0, tk.END)
-            if (event.y < 12 and index < (len(self.dates) - 1)) :
-                index += 1
-            else :
-                index -= 1
-            self.shares.config(
-                values = self.get_possible_shares(effective_ticker, holdings, self.dates[index]),
-                textvariable = holdings.at[self.dates[index], effective_ticker]
-            )
+    def get_possible_shares(self) :
+        return [i for i in range(1, 10 + 1, 1)]
 
     def confirm_transaction(self, ticker, shares, date) :
         if not hasattr(self, "confirm_transaction_window") or not self.confirm_transaction_window.winfo_exists() :
             self.confirm_transaction_window = ConfirmTransactionWindow(
                 master = self.master,
                 home_page = self,
-                transaction = self.transaction,
+                message = f'You will Transaction {shares} shares of {ticker}.',
+                ticker = ticker,
+                shares = shares,
+                date = date
+            )
+
+class BuyFrame(TransactionFrame) :
+    def __init__(self, master, market, portfolio) :
+        super(BuyFrame, self).__init__(master, market, portfolio)
+
+        # Configure Label Widget.
+        self.transaction_label.config(text = 'Buy')
+
+        # Configure Spinbox Widget.
+        self.shares.config(values = self.get_possible_shares())
+
+    def confirm_transaction(self, ticker, shares, date) :
+        if not hasattr(self, "confirm_buy_window") or not self.confirm_buy_window.winfo_exists() :
+            self.confirm_buy_window = ConfirmBuyWindow(
+                master = self.master,
+                home_page = self,
+                ticker = ticker,
+                shares = shares,
+                date = date
+            )
+
+class SellFrame(TransactionFrame) :
+    def __init__(self, master, market, portfolio) :
+        super(SellFrame, self).__init__(master, market, portfolio)
+
+        shares_kwargs = {
+            'ticker' : self.ticker.get(),
+            'effective_date' : dt.datetime.strptime(self.transaction_date.get(),'%Y-%m-%d').date()
+        }
+
+        # Configure Label Widget.
+        self.transaction_label.config(text = 'Sell')
+
+        # Configure Spinbox Widget.
+        self.shares.config(values = self.get_possible_shares(**shares_kwargs))
+
+        # Update Possible Shares When Date and Ticker Changes.
+        self.ticker.bind("<Button-1>", self.update_ticker)
+        self.transaction_date.bind("<Button-1>", self.update_date)
+
+    def get_possible_shares(self, **kwargs) :
+        max_shares = self.portfolio.max_shares(ticker = kwargs['ticker'], effective_date = kwargs['effective_date'])
+
+        return [i for i in range(max_shares + 1)]
+
+    def update_shares(self, ticker, date) :
+        shares_kwargs = {
+            'ticker' : ticker,
+            'effective_date' : date
+        }
+
+        self.shares.delete(0, tk.END)
+        self.shares.config(values = self.get_possible_shares(**shares_kwargs))
+
+    def update_ticker(self, event) :
+        index = self.portfolio_tickers.index(self.ticker.get())
+
+        if (event.x >= 145) :
+            if (event.y < 12 and index < (len(self.portfolio_tickers) - 1)) :
+                index += 1
+            elif (index > 0) :
+                index -= 1
+            self.update_shares(
+                ticker = self.portfolio_tickers[index],
+                date = dt.datetime.strptime(self.transaction_date.get(),'%Y-%m-%d').date()
+            )
+
+    def update_date(self, event) :
+        index = self.dates.index(dt.datetime.strptime(self.transaction_date.get(),'%Y-%m-%d').date())
+
+        if (event.x >= 145) :
+            if (event.y < 12 and index < (len(self.dates) - 1)) :
+                index += 1
+            elif (index > 0) :
+                index -= 1
+            self.update_shares(
+                ticker = self.ticker.get(),
+                date = self.dates[index]
+            )
+
+    def confirm_transaction(self, ticker, shares, date) :
+        if not hasattr(self, "confirm_sell_window") or not self.confirm_sell_window.winfo_exists() :
+            self.confirm_sell_window = ConfirmSellWindow(
+                master = self.master,
+                home_page = self,
                 ticker = ticker,
                 shares = shares,
                 date = date
             )
 
 class ConfirmTransactionWindow(ConfirmationWindow) :
-    def __init__(self, master, home_page, transaction, ticker, shares, date) :
+    def __init__(self, master, message, home_page, ticker, shares, date) :
         super(ConfirmTransactionWindow, self).__init__(
             master = master,
-            message = f'You will {transaction.lower()} {shares} shares of {ticker}.'
+            message = message
         )
 
         self.home_page = home_page
@@ -197,10 +241,36 @@ class ConfirmTransactionWindow(ConfirmationWindow) :
         )
 
     def confirm(self, ticker, shares, adj_closes, date) :
-        if (self.home_page.transaction == 'Buy') :
-            self.master.portfolio.buy_shares(ticker, shares, adj_closes, date)
-        elif (self.home_page.transaction == 'Sell') :
-            self.master.portfolio.sell_shares(ticker, shares, adj_closes, date)
-        self.master.display_portfolio(adj_closes)
+        self.destroy()
 
+class ConfirmBuyWindow(ConfirmTransactionWindow) :
+    def __init__(self, master, home_page, ticker, shares, date) :
+        super(ConfirmBuyWindow, self).__init__(
+            master = master,
+            message = f'You will buy {shares} shares of {ticker}.',
+            home_page = home_page,
+            ticker = ticker,
+            shares = shares,
+            date = date
+        )
+
+    def confirm(self, ticker, shares, adj_closes, date) :
+        self.master.portfolio.buy_shares(ticker, shares, adj_closes, date)
+        self.master.display_portfolio(adj_closes)
+        self.destroy()
+
+class ConfirmSellWindow(ConfirmTransactionWindow) :
+    def __init__(self, master, home_page, ticker, shares, date) :
+        super(ConfirmSellWindow, self).__init__(
+            master = master,
+            message = f'You will sell {shares} shares of {ticker}.',
+            home_page = home_page,
+            ticker = ticker,
+            shares = shares,
+            date = date
+        )
+
+    def confirm(self, ticker, shares, adj_closes, date) :
+        self.master.portfolio.sell_shares(ticker, shares, adj_closes, date)
+        self.master.display_portfolio(adj_closes)
         self.destroy()

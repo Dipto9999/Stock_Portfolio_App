@@ -33,11 +33,14 @@ class DefaultFrame(tk.Frame) :
         self.general_entry_font = Font(family = 'Ubuntu Mono', size = 10, weight = 'normal')
 
 class DefaultPage(DefaultFrame) :
-    def __init__(self, frame, master) :
+    def __init__(self, frame, master, market, portfolio) :
         # Initialize Frame.
         super(DefaultPage, self).__init__(frame)
 
         self.master = master
+
+        self.market = market
+        self.portfolio = portfolio
 
         self.master.title('Stock Portfolio')
         self.master.iconbitmap('Images\Icons\Stocks.ico')
