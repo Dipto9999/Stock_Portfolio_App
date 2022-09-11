@@ -4,18 +4,18 @@
 
 from constants import *
 
-import datetime as dt
-
-import tkinter as tk
-
-from functools import partial
-
 from registration_page import RegistrationPage
 from portfolio_page import PortfolioPage
 from market_page import MarketPage
 
 from market import Market
 from portfolio import Portfolio
+
+import datetime as dt
+
+import tkinter as tk
+
+from functools import partial
 
 ######################################
 ############## Classes ###############

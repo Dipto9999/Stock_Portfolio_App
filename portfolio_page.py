@@ -30,6 +30,7 @@ class PortfolioPage(DefaultPage) :
         self.buy_stocks_frame.grid(row = 0, column = 1, padx = 5, pady = (5,10))
         self.sell_stocks_frame.grid(row = 1, column = 1, padx = 5, pady = (5,10))
 
+        # Configure Frames.
         self.display_portfolio_frame.configure(bg = 'white')
         self.buy_stocks_frame.configure(bg = 'white')
         self.sell_stocks_frame.configure(bg = 'white')
@@ -39,6 +40,9 @@ class PortfolioPage(DefaultPage) :
     def display_portfolio(self, adj_closes) :
         if hasattr(self, "current_portfolio") :
             self.current_portfolio.get_tk_widget().destroy()
+
+        # Turn Interactive Mode Off.
+        plt.ioff()
 
         self.fig_portfolio = self.portfolio.display_portfolio(adj_closes)
 
