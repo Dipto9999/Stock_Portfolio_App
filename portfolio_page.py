@@ -26,9 +26,9 @@ class PortfolioPage(DefaultPage) :
         self.sell_stocks_frame = SellFrame(master = self, market = market, portfolio = portfolio)
 
         # Position Frames.
-        self.display_portfolio_frame.grid(row = 0, column = 0, rowspan = 2, padx = 5, pady = (5,10))
-        self.buy_stocks_frame.grid(row = 0, column = 1, padx = 5, pady = (5,10))
-        self.sell_stocks_frame.grid(row = 1, column = 1, padx = 5, pady = (5,10))
+        self.display_portfolio_frame.grid(row = 0, column = 0, rowspan = 2, padx = 5, pady = 5)
+        self.buy_stocks_frame.grid(row = 0, column = 1, padx = 5, pady = 5)
+        self.sell_stocks_frame.grid(row = 1, column = 1, padx = 5, pady = 5)
 
         # Configure Frames.
         self.display_portfolio_frame.configure(bg = 'white')
@@ -69,8 +69,12 @@ class TransactionFrame(DefaultFrame) :
         self.confirmation_frame = tk.Frame(self)
 
         # Position Frames.
-        self.transaction_frame.grid(row = 0, column = 0, rowspan = 2, padx = 5, pady = (5,10))
-        self.confirmation_frame.grid(row = 1, column = 1, rowspan = 1, padx = 5, pady = (5,10))
+        self.transaction_frame.grid(row = 0, column = 0, rowspan = 2, padx = 5, pady = 5)
+        self.confirmation_frame.grid(row = 1, column = 1, rowspan = 1, padx = 5, pady = 5)
+
+        # Configure Frames.
+        self.transaction_frame.configure(bg = 'white')
+        self.confirmation_frame.configure(bg = 'white')
 
         # Create Label Widgets.
         self.transaction_label = tk.Label(self.transaction_frame, text = 'Transaction',
@@ -110,7 +114,7 @@ class TransactionFrame(DefaultFrame) :
         )
 
         # Position Widgets.
-        self.transaction_label.grid(row = 0, column = 0, padx = 5, pady = (0, 5), sticky = tk.W)
+        self.transaction_label.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = tk.W)
 
         self.ticker_label.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = tk.W)
         self.ticker.grid(row = 1, column = 1, padx = (0, 5), pady = 5, sticky = tk.W)
@@ -227,7 +231,7 @@ class SellFrame(TransactionFrame) :
             )
 
 class ConfirmTransactionWindow(ConfirmationWindow) :
-    def __init__(self, master, message, home_page, ticker, shares, date) :
+    def __init__(self, master, message, home_page, **transaction_kwargs) :
         super(ConfirmTransactionWindow, self).__init__(
             master = master,
             message = message
@@ -235,46 +239,60 @@ class ConfirmTransactionWindow(ConfirmationWindow) :
 
         self.home_page = home_page
 
-        self.confirmButton.config(
-            command = lambda : self.confirm(
-                ticker = ticker,
-                shares = shares,
-                adj_closes = self.home_page.market.get_adjcloses(),
-                date = date
-            )
+        self.geometry("250x100")
+
+        self.minsize(250, 100)
+        self.maxsize(250, 100)
+
+        self.confirmation_frame.config(width = 250, height = 100, padx = 1, pady = 1)
+        self.confirmation_frame.place(
+            relx = .5, rely = .5,
+            anchor = tk.CENTER
         )
 
-    def confirm(self, ticker, shares, adj_closes, date) :
-        self.destroy()
+        self.confirmButton.config(command = lambda : self.confirm(**transaction_kwargs))
+
+    def confirm(self, **kwargs) :
+        pass
 
 class ConfirmBuyWindow(ConfirmTransactionWindow) :
     def __init__(self, master, home_page, ticker, shares, date) :
+        confirm_kwargs = {
+            'ticker' : ticker,
+            'shares' : shares,
+            'adj_closes' : home_page.market.get_adjcloses(),
+            'date' : date
+        }
+
         super(ConfirmBuyWindow, self).__init__(
             master = master,
             message = f'You will buy {shares} shares of {ticker}.',
             home_page = home_page,
-            ticker = ticker,
-            shares = shares,
-            date = date
+            **confirm_kwargs
         )
 
-    def confirm(self, ticker, shares, adj_closes, date) :
-        self.master.portfolio.buy_shares(ticker, shares, adj_closes, date)
-        self.master.display_portfolio(adj_closes)
+    def confirm(self, **kwargs) :
+        self.master.portfolio.buy_shares(kwargs['ticker'], kwargs['shares'], kwargs['adj_closes'], kwargs['date'])
+        self.master.display_portfolio(kwargs['adj_closes'])
         self.destroy()
 
 class ConfirmSellWindow(ConfirmTransactionWindow) :
     def __init__(self, master, home_page, ticker, shares, date) :
+        confirm_kwargs = {
+            'ticker' : ticker,
+            'shares' : shares,
+            'adj_closes' : home_page.market.get_adjcloses(),
+            'date' : date
+        }
+
         super(ConfirmSellWindow, self).__init__(
             master = master,
             message = f'You will sell {shares} shares of {ticker}.',
             home_page = home_page,
-            ticker = ticker,
-            shares = shares,
-            date = date
+            **confirm_kwargs
         )
 
-    def confirm(self, ticker, shares, adj_closes, date) :
-        self.master.portfolio.sell_shares(ticker, shares, adj_closes, date)
-        self.master.display_portfolio(adj_closes)
+    def confirm(self, **kwargs) :
+        self.master.portfolio.sell_shares(kwargs['ticker'], kwargs['shares'], kwargs['adj_closes'], kwargs['date'])
+        self.master.display_portfolio(kwargs['adj_closes'])
         self.destroy()

@@ -73,7 +73,7 @@ class RegistrationPage(DefaultPage) :
         )
 
         # Position Widgets.
-        self.new_portfolio_label.grid(row = 0, column = 0, padx = 5, pady = (0, 5), sticky = tk.W)
+        self.new_portfolio_label.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = tk.W)
 
         self.first_name_label.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = tk.W)
         self.first_name.grid(row = 1, column = 1, padx = (0, 5), pady = 5, sticky = tk.W)
@@ -90,7 +90,7 @@ class RegistrationPage(DefaultPage) :
         self.creation_date_label.grid(row = 5, column = 0, padx = 5, pady = 5, sticky = tk.W)
         self.creation_date.grid(row = 5, column = 1, padx = (0, 5), pady = 5, sticky = tk.W)
 
-        self.submitButton.grid(row = 6, column = 2, padx = 10, pady = 10, sticky = tk.E)
+        self.submitButton.grid(row = 6, column = 2, padx = 5, pady = 5, sticky = tk.W)
 
     def add_portfolio(self, tickers, creation_date) :
         days = (dt.datetime.today().date() - creation_date).days

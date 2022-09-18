@@ -83,7 +83,7 @@ class ConfirmationWindow(DefaultWindow) :
         self.confirmation_frame.configure(bg = 'white')
 
         # Position Frame.
-        self.confirmation_frame.pack(padx = 5, pady = (5,10))
+        self.confirmation_frame.grid(row = 0, column = 0, padx = 10, pady = 10, sticky = tk.E + tk.W+ tk.N + tk.S)
 
         # Create Label Widget.
         self.confirmation_label = tk.Label(self.confirmation_frame,
@@ -105,8 +105,8 @@ class ConfirmationWindow(DefaultWindow) :
         # Position Widgets.
         self.confirmation_label.grid(row = 0, column = 0, columnspan = 2, padx = 5, pady = (0, 5), sticky = tk.N + tk.E + tk.S + tk.W)
 
-        self.confirmButton.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = tk.W)
-        self.abortButton.grid(row = 1, column = 1, padx = (0, 5), pady = 5, sticky = tk.E)
+        self.confirmButton.grid(row = 1, column = 0, padx = 1, pady = 1)
+        self.abortButton.grid(row = 1, column = 1, padx = 1, pady = 1)
 
     def confirm(self) :
         pass

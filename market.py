@@ -412,6 +412,8 @@ def test_market() :
     )
     market.plot_corr()
 
-    # market.delete_records()
+    return market
 
-# test_market()
+if __name__ == '__main__' :
+    market = test_market()
+    market.delete_records()

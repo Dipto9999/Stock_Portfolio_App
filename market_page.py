@@ -16,27 +16,52 @@ class MarketPage(DefaultPage) :
 
         # Create Frames.
         self.market_records_frame = MarketRecordsFrame(master = self, market = market)
-        self.rsi_frame = tk.Frame(self)
-        self.tickers_frame = tk.Frame(self)
+        self.historical_data_frame = tk.Frame(self)
+        self.placeholder_frame = tk.Frame(self)
 
         # Position Frames.
-        self.market_records_frame.grid(row = 0, column = 0, rowspan = 2, padx = 5, pady = (5,10))
-        self.rsi_frame.grid(row = 0, column = 1, padx = 5, pady = (5,10))
-        self.tickers_frame.grid(row = 1, column = 1, padx = 5, pady = (5,10))
+        self.market_records_frame.grid(row = 0, column = 0, rowspan = 1, padx = 5, pady = (5,10))
+        self.historical_data_frame.grid(row = 0, column = 1, padx = 5, pady = (5,10), sticky = tk.E + tk.W + tk.N + tk.S)
+        self.placeholder_frame.grid(row = 1, column = 1, padx = 5)
 
         # Configure Frames.
         self.market_records_frame.configure(bg = self.market_records_frame.general_treeview_bg)
-        self.rsi_frame.configure(bg = 'white')
-        self.tickers_frame.configure(bg = 'white')
+        self.historical_data_frame.configure(bg = 'white')
+        self.placeholder_frame.configure(bg = 'white')
+
+        ###############################
+        ### Historical Trends Frame ###
+        ###############################
 
         # Create Label Widgets.
-        self.rsi_label = tk.Label(self.rsi_frame, text = 'RSI',
+        self.historical_data_label = tk.Label(self.historical_data_frame, text = 'Historical Data',
             bg = self.heading_label_bg, fg = 'black', font = self.heading_label_font, borderwidth = 2, relief = 'solid', anchor = tk.W)
 
-        self.ticker_label = tk.Label(self.rsi_frame, text = 'Ticker : ',
+        self.ticker_label = tk.Label(self.historical_data_frame, text = 'Ticker : ',
             bg = self.general_label_bg, fg = 'black', font = self.general_label_font, borderwidth = 1, relief = 'solid', anchor = tk.W)
-        self.days_label = tk.Label(self.rsi_frame, text = 'Days : ',
+        self.days_label = tk.Label(self.historical_data_frame, text = 'Days : ',
             bg = self.general_label_bg, fg = 'black', font = self.general_label_font, borderwidth = 1, relief = 'solid', anchor = tk.W)
+
+        self.duplicate_rsi_label = tk.Label(self.placeholder_frame, text = 'Historical Data',
+            bg = self.heading_label_bg, fg = 'black', font = self.heading_label_font, borderwidth = 2, relief = 'solid', anchor = tk.W)
+
+        self.duplicate_ticker_label = tk.Label(self.placeholder_frame, text = 'Ticker : ',
+            bg = self.general_label_bg, fg = 'black', font = self.general_label_font, borderwidth = 1, relief = 'solid', anchor = tk.W)
+        self.duplicate_days_label = tk.Label(self.placeholder_frame, text = 'Days : ',
+            bg = self.general_label_bg, fg = 'black', font = self.general_label_font, borderwidth = 1, relief = 'solid', anchor = tk.W)
+
+        # Create Spinbox Entry Widgets.
+        # self.rsi_ticker =
+
+        self.historical_data_label.grid(row = 0, column = 0, padx = 5, pady = 5, sticky = tk.W)
+
+        self.ticker_label.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = tk.W)
+        self.days_label.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = tk.W)
+
+        self.duplicate_rsi_label.grid(row = 0, column = 0, padx = 5, pady = (0, 5), sticky = tk.W)
+
+        self.duplicate_ticker_label.grid(row = 1, column = 0, padx = 5, pady = 5, sticky = tk.W)
+        self.duplicate_days_label.grid(row = 2, column = 0, padx = 5, pady = 5, sticky = tk.W)
 
 class MarketRecordsFrame(DefaultRecordsFrame) :
     def __init__(self, master, market) :

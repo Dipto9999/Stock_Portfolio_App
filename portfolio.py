@@ -594,4 +594,6 @@ def test_portfolio() :
 
     portfolio.display_portfolio(adj_closes = market.get_adjcloses())
 
-# test_portfolio()
+
+if __name__ == '__main__' :
+    test_portfolio()
