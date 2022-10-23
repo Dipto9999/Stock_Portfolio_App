@@ -17,17 +17,17 @@ class MarketPage(DefaultPage) :
         # Create Frames.
         self.market_records_frame = MarketRecordsFrame(master = self, market = market)
         self.historical_data_frame = tk.Frame(self)
-        self.placeholder_frame = tk.Frame(self)
+        self.add_ticker_frame = tk.Frame(self)
 
         # Position Frames.
         self.market_records_frame.grid(row = 0, column = 0, rowspan = 1, padx = 5, pady = (5,10))
         self.historical_data_frame.grid(row = 0, column = 1, padx = 5, pady = (5,10), sticky = tk.E + tk.W + tk.N + tk.S)
-        self.placeholder_frame.grid(row = 1, column = 1, padx = 5)
+        self.add_ticker_frame.grid(row = 1, column = 1, padx = 5)
 
         # Configure Frames.
         self.market_records_frame.configure(bg = self.market_records_frame.general_treeview_bg)
         self.historical_data_frame.configure(bg = 'white')
-        self.placeholder_frame.configure(bg = 'white')
+        self.add_ticker_frame.configure(bg = 'white')
 
         ###############################
         ### Historical Trends Frame ###
@@ -42,12 +42,12 @@ class MarketPage(DefaultPage) :
         self.days_label = tk.Label(self.historical_data_frame, text = 'Days : ',
             bg = self.general_label_bg, fg = 'black', font = self.general_label_font, borderwidth = 1, relief = 'solid', anchor = tk.W)
 
-        self.duplicate_rsi_label = tk.Label(self.placeholder_frame, text = 'Historical Data',
+        self.duplicate_rsi_label = tk.Label(self.add_ticker_frame, text = 'Historical Data',
             bg = self.heading_label_bg, fg = 'black', font = self.heading_label_font, borderwidth = 2, relief = 'solid', anchor = tk.W)
 
-        self.duplicate_ticker_label = tk.Label(self.placeholder_frame, text = 'Ticker : ',
+        self.duplicate_ticker_label = tk.Label(self.add_ticker_frame, text = 'Ticker : ',
             bg = self.general_label_bg, fg = 'black', font = self.general_label_font, borderwidth = 1, relief = 'solid', anchor = tk.W)
-        self.duplicate_days_label = tk.Label(self.placeholder_frame, text = 'Days : ',
+        self.duplicate_days_label = tk.Label(self.add_ticker_frame, text = 'Days : ',
             bg = self.general_label_bg, fg = 'black', font = self.general_label_font, borderwidth = 1, relief = 'solid', anchor = tk.W)
 
         # Create Spinbox Entry Widgets.
