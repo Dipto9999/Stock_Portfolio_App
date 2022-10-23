@@ -51,7 +51,7 @@ It is good practice (and necessary) to consider the actions both preceding and f
 
 The following <em>user journey map</em> depicts potential workflows we're looking to accomplish through this application.
 
-<img align = "right" src="Images/Design/UserJourney_Map.jpg" width="40%" height="40%" title="User Journey Map" >
+<img align = "right" src="Images/Design/UserJourney_Map.jpg" width="60%" height="60%" title="User Journey Map" >
 
 We intend to create a portfolio during our first interaction. From here on, we're looking to visualize our current portfolio upon starting the application.
 
@@ -70,8 +70,8 @@ The pages have been wireframed based on the <em>user journey</em>. In general, w
 
 <table>
   <tr>
-    <th><h2>Pages</h2></th>
-    <th><h2>Functionality</h2></th>
+    <th>Pages</th>
+    <th>Functionality</th>
   </tr>
   <!-- LandingPage -->
   <tr>
@@ -83,24 +83,22 @@ The pages have been wireframed based on the <em>user journey</em>. In general, w
     <td><img src = "Images/Design/Wireframes/PortfolioPage.jpg"></td>
     <td>
         <ul>
-            <h3>
-                <li>Visualize Portfolio
-                <li><em>Analyze Potential Transactions (TBD)</em>
-                <li>Make Stock Transactions
-            </h3>
+            <li>Visualize Portfolio
+            <li><em>Analyze Potential Transactions (TBD)</em>
+            <li>Make Stock Transactions
         </ul>
     </td>
   </tr>
   <!-- MarketPage -->
   <tr>
     <td><img src = "Images/Design/Wireframes/MarketPage.jpg"></td>
-    <td><h3>Visualize Market History</h3></td>
+    <td>Visualize Market History</td>
   </tr>
 </table>
 
 Lets take a look at this **Data Flow Diagram (DFD)**:</br>
 
-<p align="center"><img src="Images/Design/DataFlow_Diagram.jpg" width="40%" height="40%" title="Data Flow Diagram"></p>
+<p align="center"><img src="Images/Design/DataFlow_Diagram.jpg" width="60%" height="60%" title="Data Flow Diagram"></p>
 
 We've designed the <em>application backend</em> to account for :</br>
 
@@ -132,7 +130,7 @@ The [(`app.py`)](app.py) <b>Python</b> file must be run to add, delete, or modif
 When running the application, we can see here that our portfolio is at a **$1272.8 USD** unrealized loss with a total value of **$2144.4 USD** and is composed exclusively of **TSLA** shares.
 
 <p align = "center">
-    <img src="Images/SQLite/Current_Portfolio.jpg" width="40%" height="40%" title="Current Portfolio">
+    <img src="Images/SQLite/Current_Portfolio.jpg" width="60%" height="60%" title="Current Portfolio">
 </p>
 
 ### SQLite Database
@@ -142,13 +140,13 @@ We have included the **SQL** tables in the [(`stock_trades.db`)](stock_trades.db
 We run the `sqlite3 stock_trades.db` and `.tables` commands to identify our table names as specified in the [(`market.py`)](market.py) and [(`portfolio.py`)](portfolio.py) modules.
 
 <p align = "center">
-    <img src="Images/SQLite/SQLite_Tables.jpg" width="40%" height="40%" title="SQLite Tables">
+    <img src="Images/SQLite/SQLite_Tables.jpg" width="60%" height="60%" title="SQLite Tables">
 </p>
 
 Let's query the `Muntakim_balances` table.
 
 <p align = "center">
-    <img src="Images/SQLite/Muntakim_balances.jpg" width="40%" height="40%" title="Muntakim_balances Table Data">
+    <img src="Images/SQLite/Muntakim_balances.jpg" width="60%" height="60%" title="Muntakim_balances Table Data">
 </p>
 
 We can see here that our **TSLA** balance (i.e. deposited amount) is **$3416.2**. This is consistent with the data from the portfolio visualization.
@@ -157,7 +155,7 @@ We can see here that our **TSLA** balance (i.e. deposited amount) is **$3416.2**
 
 Here is a demo of real time interaction with the application.
 
-
+https://user-images.githubusercontent.com/52113009/197423041-074e3278-a808-49dd-a7a9-8ad1b2a625b8.mp4
 
 ## Credit
 
