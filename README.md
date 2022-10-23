@@ -53,13 +53,13 @@ The following <em>user journey map</em> depicts potential workflows we're lookin
 
 We intend to create a portfolio during our first interaction. From here on, we're looking to visualize our current portfolio upon starting the application.
 
+<img align = "right" src="Images/Design/UserJourney_Map.jpg" width="60%" height="60%" title="User Journey Map" >
+
 - User Journey <i>0</i> :
     - Create Portfolio
     - Visualize Market History
     - <em>Analyze Potential Transactions (TBD)</em>
     - Make Stock Transactions
-
-<img align = "right" src="Images/Design/UserJourney_Map.jpg" width="60%" height="60%" title="User Journey Map" >
 
 - User Journey <i>1 ... n</i> :
     - Visualize Portfolio
