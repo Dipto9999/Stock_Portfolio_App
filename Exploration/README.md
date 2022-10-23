@@ -14,6 +14,7 @@
 
 An exploration of historical records and investor activity for the stock market. The records are pulled from [(`yahoo-finance`)](https://ca.finance.yahoo.com/) API.
 
+
 ## Market
 
 In this analysis, we are primarily considering the $adjusted$ $closing$ prices over the past $365$ days</i>.
