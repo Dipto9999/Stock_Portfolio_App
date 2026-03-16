@@ -4,6 +4,8 @@
 
 from constants import *
 
+import os
+import sys
 import tkinter as tk
 from tkinter.font import Font
 from tkinter import ttk
@@ -43,14 +45,20 @@ class DefaultPage(DefaultFrame) :
         self.portfolio = portfolio
 
         self.master.title('Stock Portfolio')
-        self.master.iconbitmap('Images\Icons\Stocks.ico')
+        try :
+            self.master.iconbitmap(os.path.join('Images', 'Icons', 'Stocks.ico'))
+        except Exception :
+            pass
 
 class DefaultWindow(tk.Toplevel) :
     def __init__(self) :
         # Can Initialize GUI Implicitly.
         super().__init__()
 
-        self.iconbitmap('Images\Icons\Stocks.ico')
+        try :
+            self.iconbitmap(os.path.join('Images', 'Icons', 'Stocks.ico'))
+        except Exception :
+            pass
         self.config(bg = 'black')
 
         # TTK Colors and Fonts.
@@ -138,7 +146,7 @@ class DefaultRecordsFrame(DefaultFrame) :
 
         # Create a Treeview Style.
         self.treeview_style = ttk.Style()
-        self.treeview_style.theme_use('winnative')
+        self.treeview_style.theme_use('winnative' if sys.platform == 'win32' else 'clam')
 
         # Treeview Body Style.
         self.treeview_style.configure('display_style.Treeview',

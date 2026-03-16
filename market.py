@@ -7,13 +7,21 @@ from constants import *
 import datetime as dt
 
 import pandas as pd
-import pandas_datareader as web
+import yfinance as yf
 import sqlite3
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from IPython.display import display
+##########################
+### Yahoo Finance Fetch ###
+##########################
+
+def _fetch_yahoo(ticker, start, end) :
+    df = yf.download(ticker, start = start, end = end, auto_adjust = False, progress = False)
+    if isinstance(df.columns, pd.MultiIndex) :
+        df.columns = df.columns.get_level_values(0)
+    return df
 
 ##############
 ### Market ###
@@ -37,12 +45,8 @@ class Market() :
             # Retrieve Yahoo Stock Prices.
             try :
                 stock_prices = [
-                    web.DataReader(
-                        ticker,
-                        'yahoo',
-                        start,
-                        dt.datetime.now()
-                    ) for ticker in self.tickers
+                    _fetch_yahoo(ticker, start, dt.datetime.now())
+                    for ticker in self.tickers
                 ]
             except :
                 return
@@ -141,9 +145,8 @@ class Market() :
             # Retrieve Yahoo Stock Prices.
             try :
                 stock_prices = [
-                    web.DataReader(
-                        ticker, 'yahoo', start, dt.datetime.today()
-                    ) for ticker in STANDARD_TICKERS
+                    _fetch_yahoo(ticker, start, dt.datetime.today())
+                    for ticker in STANDARD_TICKERS
                 ]
             except :
                 return
@@ -184,9 +187,8 @@ class Market() :
         # Retrieve Yahoo Stock Prices.
         try :
             stock_prices = [
-                web.DataReader(
-                    ticker, 'yahoo', start, dt.datetime.today()
-                ) for ticker in self.tickers
+                _fetch_yahoo(ticker, start, dt.datetime.today())
+                for ticker in self.tickers
             ]
         except :
             return
@@ -271,7 +273,7 @@ class Market() :
         if not (new_ticker in self.tickers) :
             # Retrieve Yahoo Stock Prices for New Ticker and Add Column to Adjusted Closes DataFrame.
             self.tickers.append(new_ticker)
-            self.stock_prices.append(web.DataReader(new_ticker, 'yahoo', self.dates[0], dt.datetime.now()))
+            self.stock_prices.append(_fetch_yahoo(new_ticker, self.dates[0], dt.datetime.now()))
             self.adj_closes[new_ticker] = self.stock_prices[-1]['Adj Close'].apply(lambda x : round(x, 2))
 
             self.set_adjcloses()
